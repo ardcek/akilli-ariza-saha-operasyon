@@ -90,7 +90,10 @@ var
   HedefISO, NowISO : String;
 {
   Result = False;
-  if (Trim(HedefStr) == '') then Exit;
+  if (Trim(HedefStr) == '')
+  {
+    Exit;
+  }
   if (Length(HedefStr) >= 16)
   {
     HedefISO = Copy(HedefStr, 7, 4) + Copy(HedefStr, 4, 2) + Copy(HedefStr, 1, 2) +
