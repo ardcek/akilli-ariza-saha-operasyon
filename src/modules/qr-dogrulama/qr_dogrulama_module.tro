@@ -45,6 +45,13 @@ var
     Exit;
   }
 
+  // Format kontrol: ARIZA- ile baslamali
+  if (Copy(QRGirdi, 1, 6) <> 'ARIZA-')
+  {
+    lblSonuc.Text = 'Hata: QR formati gecersiz. Beklenen: ARIZA-TLP-...';
+    Exit;
+  }
+
   TalepNo    = ArrTalepNo.GetItem(SeciliTalepIndex);
   BeklenenQR = GetBeklenenQR(TalepNo);
 

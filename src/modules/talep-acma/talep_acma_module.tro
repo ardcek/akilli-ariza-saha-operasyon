@@ -11,7 +11,7 @@ var
   edtAciklama       : TClProEdit;
   edtLokasyonId     : TClProEdit;
   edtKategoriId     : TClProEdit;
-  edtOncelik        : TClProEdit;
+  edtOncelik        : TclComboBox;
   btnKaydet         : TClProButton;
   btnTemizle        : TClProButton;
   btnGeri           : TClProButton;
@@ -57,7 +57,8 @@ function ValidateTalepForm(Baslik, Aciklama, LokasyonText, KategoriText, Oncelik
   if (Trim(Aciklama) == '') { ShowMessage('Hata: Aciklama bos birakilamaz.'); Exit; }
   if (Trim(LokasyonText) == '') { ShowMessage('Hata: Lokasyon bos birakilamaz.'); Exit; }
   if (Trim(KategoriText) == '') { ShowMessage('Hata: Kategori bos birakilamaz.'); Exit; }
-  if (Trim(OncelikText) == '') { ShowMessage('Hata: Oncelik bos birakilamaz.'); Exit; }
+  if (Trim(OncelikText) == '') { ShowMessage('Hata: Oncelik secilmeli.'); Exit; }
+  if ((Trim(OncelikText) <> 'Dusuk') && (Trim(OncelikText) <> 'Orta') && (Trim(OncelikText) <> 'Yuksek') && (Trim(OncelikText) <> 'Kritik')) { ShowMessage('Hata: Gecersiz oncelik degeri.'); Exit; }
   if (Length(Trim(Baslik)) < 5) { ShowMessage('Hata: Baslik en az 5 karakter olmali.'); Exit; }
   if not IsStringNumeric(Trim(LokasyonText)) { ShowMessage('Hata: LokasyonId sayisal olmali.'); Exit; }
   if not IsStringNumeric(Trim(KategoriText)) { ShowMessage('Hata: KategoriId sayisal olmali.'); Exit; }
@@ -119,7 +120,7 @@ void OnKaydet;
     edtAciklama.Text = '';
     edtLokasyonId.Text = '';
     edtKategoriId.Text = '';
-    edtOncelik.Text = '';
+    edtOncelik.ItemIndex = -1;
   }
 }
 
@@ -129,7 +130,7 @@ void OnTemizle;
   edtAciklama.Text = '';
   edtLokasyonId.Text = '';
   edtKategoriId.Text = '';
-  edtOncelik.Text = '';
+  edtOncelik.ItemIndex = -1;
 }
 
 void OnGeri;
@@ -163,9 +164,13 @@ procedure BuildTalepAcmaUI;
   edtKategoriId.Align = alMostTop; edtKategoriId.Height = 42;
   edtKategoriId.Margins.Left = 24; edtKategoriId.Margins.Right = 24; edtKategoriId.Margins.Top = 8;
 
-  edtOncelik = TalepForm.AddNewProEdit(TalepForm, 'edtOncelik', 'Oncelik (Dusuk/Orta/Yuksek/Kritik)');
+  edtOncelik = TalepForm.AddNewComboBox(TalepForm, 'cmbOncelik');
   edtOncelik.Align = alMostTop; edtOncelik.Height = 42;
   edtOncelik.Margins.Left = 24; edtOncelik.Margins.Right = 24; edtOncelik.Margins.Top = 8;
+  edtOncelik.items.Add('Dusuk');
+  edtOncelik.items.Add('Orta');
+  edtOncelik.items.Add('Yuksek');
+  edtOncelik.items.Add('Kritik');
 
   btnKaydet = TalepForm.AddNewProButton(TalepForm, 'btnKaydet', 'Kaydet');
   btnKaydet.Align = alMostTop; btnKaydet.Height = 44;

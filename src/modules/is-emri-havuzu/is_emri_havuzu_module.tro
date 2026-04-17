@@ -232,7 +232,7 @@ var
   HavuzForm = TclStyleForm.Create(Self);
   HavuzForm.clSetStyle(HavuzForm.LightSB);
   HavuzForm.clCaption = 'Is Emri Havuzu';
-  HavuzForm.OnShow = 'OnHavuzShow';
+  HavuzForm.AddNewEvent(HavuzForm, tbeOnFormShow, 'OnHavuzShow');
 
   BuildHavuzUI;
   RenderHavuz('', '');

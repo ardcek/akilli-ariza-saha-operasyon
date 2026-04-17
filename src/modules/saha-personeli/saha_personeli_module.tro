@@ -20,7 +20,7 @@ var
   lblDetayBaslik     : TclProLabel;
   lblDetayDurum      : TclProLabel;
   lblDetayQR         : TclProLabel;
-  cmbYeniDurum       : TClProEdit;
+  cmbYeniDurum       : TclComboBox;
   edtNot             : TClProEdit;
   btnDurumGuncelle   : TClProButton;
   btnQRDogrula       : TClProButton;
@@ -129,7 +129,7 @@ void OnIsSec;
     lblDetayQR.Text = 'QR: Dogrulanmadi';
 
   lblSonuc.Text = '';
-  cmbYeniDurum.Text = '';
+  cmbYeniDurum.ItemIndex = -1;
   edtNot.Text = '';
 }
 
@@ -151,7 +151,7 @@ var
 
   if (YeniDurum == '')
   {
-    lblSonuc.Text = 'Hata: Yeni durumu yazin (Yolda, Islemde, Beklemede, Tamamlandi).';
+    lblSonuc.Text = 'Hata: Listeden bir durum secin.';
     Exit;
   }
 
@@ -272,8 +272,16 @@ var
   lblDetayQR = SahaForm.AddNewProLabel(pnlDetay, 'lqr', '');
   clComponent.SetupComponent(lblDetayQR, '{"Align":"Top","Height":18,"MarginLeft":16,"TextSize":12,"TextColor":"#6B7280","TextHorizontalAlign":"leading","BackgroundColor":"null"}');
 
-  cmbYeniDurum = SahaForm.AddNewProEdit(pnlDetay, 'edtDurum', 'Yeni Durum (Yolda/Islemde/Beklemede/Tamamlandi)');
-  clComponent.SetupComponent(cmbYeniDurum, '{"Align":"Top","Height":36,"MarginLeft":16,"MarginRight":16,"MarginTop":6,"TextSize":12,"RoundHeight":8,"RoundWidth":8,"BorderWidth":0,"BackgroundColor":"#FFFFFF"}');
+  cmbYeniDurum = SahaForm.AddNewComboBox(pnlDetay, 'cmbDurum');
+  cmbYeniDurum.Align = alTop;
+  cmbYeniDurum.Height = 36;
+  cmbYeniDurum.Margins.Left = 16;
+  cmbYeniDurum.Margins.Right = 16;
+  cmbYeniDurum.Margins.Top = 6;
+  cmbYeniDurum.items.Add('Yolda');
+  cmbYeniDurum.items.Add('Islemde');
+  cmbYeniDurum.items.Add('Beklemede');
+  cmbYeniDurum.items.Add('Tamamlandi');
 
   edtNot = SahaForm.AddNewProEdit(pnlDetay, 'edtNot', 'Not (opsiyonel)');
   clComponent.SetupComponent(edtNot, '{"Align":"Top","Height":36,"MarginLeft":16,"MarginRight":16,"MarginTop":4,"TextSize":12,"RoundHeight":8,"RoundWidth":8,"BorderWidth":0,"BackgroundColor":"#FFFFFF"}');
@@ -298,7 +306,7 @@ var
   SahaForm = TclStyleForm.Create(Self);
   SahaForm.clSetStyle(SahaForm.LightSB);
   SahaForm.clCaption = 'Saha Islerim';
-  SahaForm.OnShow = 'OnSahaShow';
+  SahaForm.AddNewEvent(SahaForm, tbeOnFormShow, 'OnSahaShow');
 
   BuildSahaUI;
   RenderIsListesi;
