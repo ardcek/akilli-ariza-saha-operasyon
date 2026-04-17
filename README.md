@@ -102,44 +102,37 @@ Detayli analiz ve tasarim notlari docs klasorundadir:
 
 - docs/01-mimari.md
 - docs/02-veri-modeli.md
-- docs/03-ekranlar.md
-- docs/04-mvp-kapsami.md
+- docs/03-ekranlar-ve-gorevler.md
+- docs/04-mvp-kapsam.md
 - docs/05-ilk-modul-secimi.md
-- docs/06-talep-acma-modulu.md
-- docs/07-prosedurler-giris-cikis-mantigi.md
+- docs/06-prosedurler-giris-cikis.md
+- docs/07-hata-kontrolleri.md
 - docs/08-test-senaryolari.md
 - docs/09-sonraki-modul-onerisi.md
 
-## Calisma Modeli
-- Her modul su anda MVP amacli bagimsiz bir .tro dosyasi olarak hazirlandi
-- Ekranlar icinde demo veri ve yerel array yapilari kullaniliyor
-- Uygulama genelinde ortak veri paylasimi ve tam navigasyon akisi henuz birlestirilmedi
-- Bu yapi, yarisma demosu ve ekran bazli gelistirme icin hizli iterasyon saglar
+## Mimari
+- Tum moduller TclUnit ile birbirine bagli tek bir entegre uygulama olarak calisir
+- MainCode.tro giris noktasidir ve tum ortak veriyi (array ve degiskenler) barindirir
+- Her modul TclUnit.CallerForm ile scope inheritance kullanarak ortak veriye erisir
+- Ekran gecisleri: CallerForm.clHide → Unit.Run → CallerForm.clShow
 
 ## Teknik Yapi
 - Dil: Clomosy TRObject
 - Form yapisi: TclStyleForm
-- UI bilesenleri: TclProPanel, TclProLabel, TClProButton, TClProEdit, TclVertScrollBox
-- Veri tutma yaklasimi: TclArrayString, TclArrayInteger
+- UI bilesenleri: TclProPanel, TclProLabel, TClProButton, TClProEdit, TclVertScrollBox, TclComboBox
+- Veri tutma yaklasimi: TclArrayString, TclArrayInteger (MainCode.tro tek kaynak)
 - Stil verme: clComponent.SetupComponent(JSON)
+- Form olaylari: AddNewEvent(Form, tbeOnFormShow, 'handler')
+- Modul navigasyonu: TclUnit ile CallerForm scope miras alma
 
-## Mevcut Durum
-- MVP moduller olusturuldu
-- Repo dokumantasyonu hazirlandi
-- Kodlar GitHub'a push edildi
-- Guncel commit: 2c3d471
-
-## Sonraki Gereksinimler
-Projeyi ekran iskeletinden entegre demo seviyesine tasimak icin asagidaki isler gereklidir:
-
-1. Ortak veri modeli kurmak
-2. Moduller arasi gercek ekran gecislerini baglamak
-3. Talep, atama ve durum gecmisini ortak yerde tutmak
-4. QR dogrulamayi saha personeli akisina baglamak
-5. Dashboard verilerini diger modullerle eslemek
-6. Rapor tarih filtrelerini gercek tarih karsilastirmasi ile tamamlamak
-7. Demo senaryosu icin ekran akisini bastan sona prova etmek
-8. Gerekirse ekran goruntuleri ve tanitim metni eklemek
-
-## Not
-Bu repo su anda yarisma sunumu icin uygun bir MVP temel sunar. Bir sonraki adim, modulleri bagimsiz ekranlardan tek bir entegre uygulama akisina donusturmektir.
+## Tamamlanan Ozellikler
+- Rol bazli giris ve yonlendirme (TalepAcan, SahaPersoneli, Yonetici)
+- Talep acma: ComboBox ile oncelik secimi, validasyon, SLA hedef kapanis hesaplama
+- Is emri havuzu: durum/oncelik filtresi, SLA asimi isaretleme
+- Yonetici atama: personel is yukleme kontrolu (max 5), durum gecmisi
+- Saha personeli: durum zinciri kontrolu, ComboBox ile durum secimi, otomatik liste guncelleme
+- QR dogrulama: ARIZA- prefix kontrolu, dogrulama loglama, scope uzerinden etiket guncelleme
+- Dashboard: durum sayilari, SLA ihlalleri, personel is dagilimi
+- Rapor: tarih araligi (dd.mm.yyyy) filtresi, ISO karsilastirma
+- StrToInt guvenlik: IsStringNumeric fonksiyonu ile sayi validasyonu
+- Form otomatik yenileme: tbeOnFormShow ile ekran gosteriminde veri guncelleme

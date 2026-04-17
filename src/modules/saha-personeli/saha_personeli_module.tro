@@ -182,6 +182,14 @@ var
 
   lblSonuc.Text = 'Basarili: Durum -> ' + YeniDurum;
   lblDetayDurum.Text = 'Durum: ' + YeniDurum;
+
+  // Listeyi guncelle — Tamamlandi/Iptal filtrelenir, detay paneli gizlenir
+  RenderIsListesi;
+  if (YeniDurum == 'Tamamlandi') or (YeniDurum == 'Iptal')
+  {
+    pnlDetay.Visible = False;
+    SeciliIsIndex = -1;
+  }
 }
 
 void OnQRDogrula;
