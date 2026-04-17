@@ -149,6 +149,11 @@ var
   UnitRap.Run;
 }
 
+void OnHavuzShow;
+{
+  RenderHavuz('', '');
+}
+
 void OnYenile;
 {
   RenderHavuz('', '');
@@ -227,6 +232,7 @@ var
   HavuzForm = TclStyleForm.Create(Self);
   HavuzForm.clSetStyle(HavuzForm.LightSB);
   HavuzForm.clCaption = 'Is Emri Havuzu';
+  HavuzForm.OnShow = 'OnHavuzShow';
 
   BuildHavuzUI;
   RenderHavuz('', '');

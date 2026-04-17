@@ -61,6 +61,13 @@ var
   UnitNext.Run;
 }
 
+void OnGirisShow;
+{
+  edtKullaniciAdi.Text = '';
+  edtSifre.Text = '';
+  lblHata.Text = '';
+}
+
 // ─── OLAY: GİRİŞ BUTONU ──────────────────────────────────
 
 void OnGirisClick;
@@ -149,6 +156,7 @@ procedure BuildGirisUI;
   GirisForm = TclStyleForm.Create(Self);
   GirisForm.clSetStyle(GirisForm.LightSB);
   GirisForm.clCaption = 'Giris';
+  GirisForm.OnShow = 'OnGirisShow';
 
   BuildGirisUI;
 

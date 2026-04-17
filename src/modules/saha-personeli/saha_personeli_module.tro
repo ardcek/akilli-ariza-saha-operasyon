@@ -203,6 +203,20 @@ var
   UnitQR.Run;
 }
 
+void OnSahaShow;
+{
+  RenderIsListesi;
+  if (SeciliIsIndex >= 0)
+  {
+    lblDetayBaslik.Text = ArrBaslik.GetItem(SeciliIsIndex);
+    lblDetayDurum.Text  = 'Durum: ' + ArrDurum.GetItem(SeciliIsIndex);
+    if (ArrQRDogrulandi.GetItem(SeciliIsIndex) == 1)
+      lblDetayQR.Text = 'QR: Dogrulandi'
+    else
+      lblDetayQR.Text = 'QR: Dogrulanmadi';
+  }
+}
+
 void OnYenile;
 {
   pnlDetay.Visible = False;
@@ -284,6 +298,7 @@ var
   SahaForm = TclStyleForm.Create(Self);
   SahaForm.clSetStyle(SahaForm.LightSB);
   SahaForm.clCaption = 'Saha Islerim';
+  SahaForm.OnShow = 'OnSahaShow';
 
   BuildSahaUI;
   RenderIsListesi;

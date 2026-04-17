@@ -34,6 +34,22 @@ function IsRoleAllowedToCreate: Boolean;
     Result = False;
 }
 
+function IsStringNumeric(S: String): Boolean;
+var
+  i : Integer;
+{
+  Result = True;
+  if (Length(S) == 0) { Result = False; Exit; }
+  for (i = 1 to Length(S))
+  {
+    if ((Copy(S, i, 1) < '0') || (Copy(S, i, 1) > '9'))
+    {
+      Result = False;
+      Exit;
+    }
+  }
+}
+
 function ValidateTalepForm(Baslik, Aciklama, LokasyonText, KategoriText, OncelikText: String): Boolean;
 {
   Result = False;
@@ -43,6 +59,8 @@ function ValidateTalepForm(Baslik, Aciklama, LokasyonText, KategoriText, Oncelik
   if (Trim(KategoriText) == '') { ShowMessage('Hata: Kategori bos birakilamaz.'); Exit; }
   if (Trim(OncelikText) == '') { ShowMessage('Hata: Oncelik bos birakilamaz.'); Exit; }
   if (Length(Trim(Baslik)) < 5) { ShowMessage('Hata: Baslik en az 5 karakter olmali.'); Exit; }
+  if not IsStringNumeric(Trim(LokasyonText)) { ShowMessage('Hata: LokasyonId sayisal olmali.'); Exit; }
+  if not IsStringNumeric(Trim(KategoriText)) { ShowMessage('Hata: KategoriId sayisal olmali.'); Exit; }
   Result = True;
 }
 

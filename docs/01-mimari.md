@@ -6,7 +6,7 @@
 MainCode.tro                 <- Ana giris noktasi, tum paylasilan veri ve yardimcilar
 src/
   common/
-    veri_deposu.tro          <- Kanonik veri modeli referansi (dokumantasyon)
+    veri_deposu.md           <- Veri modeli referansi (tablo formati, kod yok)
     README.md
   models/
     README.md
