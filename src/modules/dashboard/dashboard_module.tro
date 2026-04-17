@@ -12,7 +12,7 @@ var
 
 // ─── DASHBOARD RENDER ─────────────────────────────────────
 
-procedure RenderDashboard;
+void RenderDashboard;
 var
   i             : Integer;
   cYeni         : Integer;
@@ -139,7 +139,7 @@ void OnGeri;
 
 // ─── UI YAPIMI ────────────────────────────────────────────
 
-procedure BuildDashUI;
+void BuildDashUI;
 var
   btnGeri : TClProButton;
 {

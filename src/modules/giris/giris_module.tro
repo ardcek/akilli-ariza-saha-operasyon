@@ -38,7 +38,7 @@ var
 
 // ─── ROL BAZLI YÖNLENDİRME ───────────────────────────────
 
-procedure NavigateByRole;
+void NavigateByRole;
 var
   UnitNext : TclUnit;
 {
@@ -102,7 +102,7 @@ var
 
 // ─── UI YAPIMI ────────────────────────────────────────────
 
-procedure BuildGirisUI;
+void BuildGirisUI;
 {
   pnlLogo = GirisForm.AddNewProPanel(GirisForm, 'pnlLogo');
   pnlLogo.Align = alMostTop;

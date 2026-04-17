@@ -103,7 +103,7 @@ void OnGeri;
 
 // ─── LOG RENDER ───────────────────────────────────────────
 
-procedure RenderLog;
+void RenderLog;
 var
   i      : Integer;
   row    : TclProPanel;
@@ -145,7 +145,7 @@ var
 
 // ─── UI YAPIMI ────────────────────────────────────────────
 
-procedure BuildQRUI;
+void BuildQRUI;
 var
   btnGeri : TClProButton;
 {

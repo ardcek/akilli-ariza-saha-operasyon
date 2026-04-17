@@ -125,7 +125,7 @@ void OnGeri;
 
 // ─── UI YAPIMI ────────────────────────────────────────────
 
-procedure BuildRaporUI;
+void BuildRaporUI;
 var
   btnGeri : TClProButton;
 {

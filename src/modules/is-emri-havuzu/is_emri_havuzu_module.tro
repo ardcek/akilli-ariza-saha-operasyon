@@ -23,7 +23,7 @@ var
 
 // ─── LİSTE RENDER ─────────────────────────────────────────
 
-procedure RenderHavuz(FiltreDurum, FiltreOncelik: String);
+void RenderHavuz(FiltreDurum, FiltreOncelik: String);
 var
   i           : Integer;
   row         : TclProPanel;
@@ -167,7 +167,7 @@ void OnGeri;
 
 // ─── UI YAPIMI ────────────────────────────────────────────
 
-procedure BuildHavuzUI;
+void BuildHavuzUI;
 var
   btnGeri : TClProButton;
 {

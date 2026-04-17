@@ -141,7 +141,7 @@ void OnGeri;
 
 // ─── UI YAPIMI ────────────────────────────────────────────
 
-procedure BuildTalepAcmaUI;
+void BuildTalepAcmaUI;
 {
   lblTitle = TalepForm.AddNewProLabel(TalepForm, 'lblTitle', 'Talep Acma — ' + AktifKullaniciAd);
   lblTitle.Align = alMostTop;

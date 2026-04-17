@@ -76,7 +76,7 @@ var
 
 // ─── ORTAK YARDIMCILAR ───────────────────────────────────
 
-procedure AddDurumLog(TalepNo, Durum, NotMt: String; YapanId: Integer);
+void AddDurumLog(TalepNo, Durum, NotMt: String; YapanId: Integer);
 {
   ArrDG_TalepNo.Add(TalepNo);
   ArrDG_Durum.Add(Durum);
@@ -145,7 +145,7 @@ var
 
 // ─── VERİ BAŞLATMA ───────────────────────────────────────
 
-procedure InitAllArrays;
+void InitAllArrays;
 {
   ArrKulId           = TclArrayInteger.Create;
   ArrKulAdi          = TclArrayString.Create;
@@ -184,7 +184,7 @@ procedure InitAllArrays;
   ArrQRLog_Tarih     = TclArrayString.Create;
 }
 
-procedure LoadDemoData;
+void LoadDemoData;
 {
   // ── Kullanicilar ──
   ArrKulId.Add(1001); ArrKulAdi.Add('talep1'); ArrKulSifre.Add('1234');

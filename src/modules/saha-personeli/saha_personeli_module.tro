@@ -53,7 +53,7 @@ function DurumGecisiGecerliMi(MevcutDurum, YeniDurum: String): Boolean;
 
 // ─── LİSTE RENDER ─────────────────────────────────────────
 
-procedure RenderIsListesi;
+void RenderIsListesi;
 var
   i         : Integer;
   row       : TclProPanel;
@@ -240,7 +240,7 @@ void OnGeri;
 
 // ─── UI YAPIMI ────────────────────────────────────────────
 
-procedure BuildSahaUI;
+void BuildSahaUI;
 var
   btnGeri : TClProButton;
   btnYen  : TClProButton;

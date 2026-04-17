@@ -101,7 +101,7 @@ void OnGeri;
 
 // ─── PERSONEL LİSTESİ RENDER ─────────────────────────────
 
-procedure RenderPersonelListesi;
+void RenderPersonelListesi;
 var
   i       : Integer;
   row     : TclProPanel;
@@ -137,7 +137,7 @@ var
 
 // ─── UI YAPIMI ────────────────────────────────────────────
 
-procedure BuildAtamaUI;
+void BuildAtamaUI;
 var
   btnAta  : TClProButton;
   btnGeri : TClProButton;
