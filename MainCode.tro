@@ -91,13 +91,12 @@ var
 {
   Result = False;
   if (Trim(HedefStr) == '') then Exit;
-  if (Length(HedefStr) >= 16)
+  if (Length(HedefStr) >= 16) then
   {
     HedefISO = Copy(HedefStr, 7, 4) + Copy(HedefStr, 4, 2) + Copy(HedefStr, 1, 2) +
                Copy(HedefStr, 12, 2) + Copy(HedefStr, 15, 2);
     NowISO = FormatDateTime('yyyymmddhhnn', Now);
-    if (HedefISO < NowISO)
-      Result = True;
+    if (HedefISO < NowISO) then Result = True;
   }
 }
 
