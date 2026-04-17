@@ -89,6 +89,14 @@ var
 
 void OnGeri;
 {
+  // Dogrudan kapsam erisimi ile parent label guncelle (29-TclUnit kaniti)
+  if (SeciliIsIndex >= 0)
+  {
+    if (ArrQRDogrulandi.GetItem(SeciliIsIndex) == 1)
+      lblDetayQR.Text = 'QR: Dogrulandi'
+    else
+      lblDetayQR.Text = 'QR: Dogrulanmadi';
+  }
   CallerForm.clShow;
   QRForm.clHide;
 }

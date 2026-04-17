@@ -129,7 +129,7 @@ void OnIsSec;
     lblDetayQR.Text = 'QR: Dogrulanmadi';
 
   lblSonuc.Text = '';
-  cmbYeniDurum.ItemIndex = -1;
+  cmbYeniDurum.ItemIndex = 0;
   edtNot.Text = '';
 }
 
