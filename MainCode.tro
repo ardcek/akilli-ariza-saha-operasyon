@@ -91,7 +91,7 @@ var
 {
   Result = False;
   if (Trim(HedefStr) == '') then Exit;
-  if (Length(HedefStr) >= 16) then
+  if (Length(HedefStr) >= 16)
   {
     HedefISO = Copy(HedefStr, 7, 4) + Copy(HedefStr, 4, 2) + Copy(HedefStr, 1, 2) +
                Copy(HedefStr, 12, 2) + Copy(HedefStr, 15, 2);
