@@ -1,4 +1,9 @@
 # common
 
-Bu klasor ortak sabitler, ortak mesajlar ve yardimci prosedurler icindir.
-MVP surumunde Talep Acma modul kodu icinde tutulan ortak parcalar sonraki asamada buraya tasinacaktir.
+Bu klasor ortak veri modeli referansini icerir.
+
+## Dosyalar
+- `veri_deposu.tro` — Projedeki tum paylasilan dizi, oturum degiskeni ve yardimci prosedur imzalarinin kanonik referansi. Dogrudan calistirilmaz; MainCode.tro icindeki tanimlarla birebir eslenir.
+
+## Not
+Clomosy TRObject'te include/uses mekanizmasi yoktur. Tum paylasilan veriler `MainCode.tro` icerisinde tanimlanir ve TclUnit kapsam mirasi ile modullere aktarilir.

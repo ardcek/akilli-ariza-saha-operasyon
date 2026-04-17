@@ -1,31 +1,51 @@
 # 01 - Mimari Yapi
 
-## Klasor Yapisı
-- docs/
-  - 01-mimari.md
-  - 02-veri-modeli.md
-  - 03-ekranlar-ve-gorevler.md
-  - 04-mvp-kapsam.md
-  - 05-ilk-modul-secimi.md
-  - 06-prosedurler-giris-cikis.md
-  - 07-hata-kontrolleri.md
-  - 08-test-senaryolari.md
-  - 09-sonraki-modul-onerisi.md
-- src/
-  - common/
-  - models/
-  - navigation/
-  - modules/
-    - talep-acma/
-      - talep_acma_module.tro
+## Klasor Yapisi
+
+```
+MainCode.tro                 <- Ana giris noktasi, tum paylasilan veri ve yardimcilar
+src/
+  common/
+    veri_deposu.tro          <- Kanonik veri modeli referansi (dokumantasyon)
+    README.md
+  models/
+    README.md
+  navigation/
+    README.md
+  modules/
+    giris/
+      giris_module.tro
+    talep-acma/
+      talep_acma_module.tro
+    is-emri-havuzu/
+      is_emri_havuzu_module.tro
+    yonetici-atama/
+      yonetici_atama_module.tro
+    saha-personeli/
+      saha_personeli_module.tro
+    qr-dogrulama/
+      qr_dogrulama_module.tro
+    dashboard/
+      dashboard_module.tro
+    rapor/
+      rapor_module.tro
+docs/
+  01-mimari.md ... 09-sonraki-modul-onerisi.md
+```
+
+## Calisma Modeli
+- `MainCode.tro` tum paylasilan dizileri tanimlar, demo veriyi yukler, `giris_module` u TclUnit olarak baslatir.
+- Her modul TclUnit olarak calisir ve parent scope uzerinden MainCode degiskenlerine erisir.
+- Navigasyon: `TclUnit.Create → UnitName → CallerForm → Run` / Geri donus: `CallerForm.clShow + clHide`
 
 ## Mimari Ilkeleri
 - Moduler gelisim: Her is alani ayri modulde
-- Durum akisi kontrollu: Gecersiz gecisler engellenir
-- Rol bazli yetki: Talep acan, saha personeli, yonetici ayrimi
-- Hata odakli akis: Kullaniciya net ve yonlendirici mesaj
-- Offline onceleme: Yerel veri gecici kaydi ile devam edebilme
+- Tek veri kaynagi: MainCode.tro icerisinde TclArrayString/TclArrayInteger dizileri
+- TclUnit kapsam mirasi: Alt unitler ust scope degiskenlerine dogrudan erisir
+- Durum akisi kontrollu: saha_personeli_module icerisinde DurumGecisiGecerliMi fonksiyonu
+- Rol bazli yetki: Giris modulu rol bazli yonlendirme yapar
+- SLA kontrolu: IsSLABreached fonksiyonu ISO format (yyyymmddhhnn) ile karsilastirir
 
-## Bu modulun eksikleri / sonraki adim
-- Ortak navigation yardimcilari henuz ayrik dosyaya alinmadi
-- Yetki denetimi merkezi bir policy yapisina alinacak
+## Sonraki Adim
+- Lokasyon ve kategori dizileri henuz sabit, dinamik hale getirilecek
+- Yetki denetimi merkezi policy yapisina alinacak
