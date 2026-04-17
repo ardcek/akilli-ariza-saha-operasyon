@@ -280,7 +280,6 @@ void LoadDemoData;
 
   RouterForm = TclStyleForm.Create(Self);
   RouterForm.clSetStyle(RouterForm.LightSB);
-  RouterForm.Caption = 'Akilli Ariza Platformu';
 
   UnitGiris = TclUnit.Create;
   UnitGiris.UnitName = 'giris_module';
