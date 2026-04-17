@@ -1,88 +1,107 @@
 /*
-  Akilli Ariza ve Saha Operasyon Platformu
   Modul: Yonetici Atama
-  Dil: Clomosy TRObject
-
-  Bu modul:
-    - Secili talep detayini gosterir
-    - Personel listesini gosterir
-    - Oncelik guncellemeye izin verir
-    - Personel atar
-    - Durumu Yeni/Inceleniyor -> Atandi olarak gunceller
-    - DurumGecmisi log kaydi olusturur
-    - Is kurali: Zaten tamamlanmis talep atanamaz
+  Unit olarak is_emri_havuzu_module tarafindan cagirilir.
+  SeciliTalepIndex ve tum diziler MainCode kapsamından gelir.
 */
 
 var
-  AtamaForm          : TclStyleForm;
+  AtamaForm        : TclStyleForm;
+  pnlHeader        : TclProPanel;
+  lblTitle         : TclProLabel;
+  pnlTalepBilgi    : TclProPanel;
+  lblTalepNo       : TclProLabel;
+  lblTalepBaslik   : TclProLabel;
+  lblTalepOncelik  : TclProLabel;
+  lblTalepDurum    : TclProLabel;
+  pnlPersonelSec   : TclProPanel;
+  lblPerSecHeader  : TclProLabel;
+  scrPersoneller   : TclVertScrollBox;
+  pnlAlt           : TclProPanel;
+  lblSonuc         : TclProLabel;
+  SeciliPersonelIdx: Integer;
 
-  pnlHeader          : TclProPanel;
-  lblTitle           : TclProLabel;
+// ─── YARDIMCILAR ──────────────────────────────────────────
 
-  pnlTalepDetay      : TclProPanel;
-  lblDetayNo         : TclProLabel;
-  lblDetayBaslik     : TclProLabel;
-  lblDetayOncelik    : TclProLabel;
-  lblDetayDurum      : TclProLabel;
-
-  pnlAtamaAlani      : TclProPanel;
-  lblOncelikSec      : TclProLabel;
-  edtYeniOncelik     : TClProEdit;
-  lblPersonelSec     : TclProLabel;
-  scrPersoneller      : TclVertScrollBox;
-  btnAta             : TClProButton;
-  lblSonuc           : TclProLabel;
-
-  // Secili talep (Is Emri Havuzundan gelir)
-  SeciliTalepNo      : String;
-  SeciliTalepBaslik  : String;
-  SeciliTalepOncelik : String;
-  SeciliTalepDurum   : String;
-
-  // Secili personel
-  SeciliPersonelId   : Integer;
-  SeciliPersonelAd   : String;
-
-  // Yonetici bilgisi
-  AktifYoneticiId    : Integer;
-
-  // Personel listesi (MVP statik)
-  ArrPerAd           : TclArrayString;
-  ArrPerId           : TclArrayInteger;
-  ArrPerAktifIs      : TclArrayInteger;
-  PersonelSayisi     : Integer;
-
-  // DurumGecmisi logu
-  ArrDG_TalepNo      : TclArrayString;
-  ArrDG_Durum        : TclArrayString;
-  ArrDG_Not          : TclArrayString;
-  ArrDG_IslemYapanId : TclArrayInteger;
-  ArrDG_Tarih        : TclArrayString;
-
-// ─── YARDIMCILAR ─────────────────────────────────────────
-
-procedure AddDurumLog(TalepNo, Durum, NotMt: String; YapanId: Integer);
+function CanBeAssigned(PerIdx: Integer): Boolean;
 {
-  ArrDG_TalepNo.Add(TalepNo);
-  ArrDG_Durum.Add(Durum);
-  ArrDG_Not.Add(NotMt);
-  ArrDG_IslemYapanId.Add(YapanId);
-  ArrDG_Tarih.Add(FormatDateTime('dd.mm.yyyy hh:nn:ss', Now));
+  Result = True;
+  if (ArrPerAktifIs.GetItem(PerIdx) >= 5) then Result = False;
 }
 
-function CanBeAssigned(Durum: String): Boolean;
+// ─── OLAYLAR ──────────────────────────────────────────────
+
+void OnPersonelSec;
 {
-  if ((Durum == 'Tamamlandi') || (Durum == 'Iptal'))
+  SeciliPersonelIdx = TClProButton(AtamaForm.clSender).clTagInt;
+  lblSonuc.Text = 'Secilen: ' + ArrPerAd.GetItem(SeciliPersonelIdx);
+}
+
+void OnAta;
+var
+  PerId   : Integer;
+  PerAd   : String;
+  TNo     : String;
+{
+  if (SeciliPersonelIdx < 0)
   {
-    Result = False;
+    lblSonuc.Text = 'Hata: Oncelikle bir personel secin.';
     Exit;
   }
-  Result = True;
+
+  if not CanBeAssigned(SeciliPersonelIdx)
+  {
+    lblSonuc.Text = 'Hata: Bu personelin is yukü dolu (maks 5).';
+    Exit;
+  }
+
+  if (ArrDurum.GetItem(SeciliTalepIndex) == 'Tamamlandi') or
+     (ArrDurum.GetItem(SeciliTalepIndex) == 'Iptal')
+  {
+    lblSonuc.Text = 'Hata: Tamamlanmis veya iptal talep atanamaz.';
+    Exit;
+  }
+
+  PerId = ArrPerId.GetItem(SeciliPersonelIdx);
+  PerAd = ArrPerAd.GetItem(SeciliPersonelIdx);
+  TNo   = ArrTalepNo.GetItem(SeciliTalepIndex);
+
+  // Eski personelin aktif is sayisini dusur
+  if (ArrAtananPersonelId.GetItem(SeciliTalepIndex) > 0)
+  {
+    var j : Integer;
+    for (j = 0 to PersonelSayisi - 1)
+    {
+      if (ArrPerId.GetItem(j) == ArrAtananPersonelId.GetItem(SeciliTalepIndex))
+      {
+        ArrPerAktifIs.SetItem(j, ArrPerAktifIs.GetItem(j) - 1);
+        break;
+      }
+    }
+  }
+
+  // Guncelle
+  ArrAtananPersonelId.SetItem(SeciliTalepIndex, PerId);
+  ArrDurum.SetItem(SeciliTalepIndex, 'Atandi');
+
+  // Yeni personelin aktif is sayisini artir
+  ArrPerAktifIs.SetItem(SeciliPersonelIdx, ArrPerAktifIs.GetItem(SeciliPersonelIdx) + 1);
+
+  // Durum gecmisi
+  AddDurumLog(TNo, 'Atandi', PerAd + ' personeline atandi.', AktifKullaniciId);
+
+  lblSonuc.Text = 'Basarili: ' + TNo + ' → ' + PerAd;
+  lblTalepDurum.Text = 'Durum: Atandi';
 }
 
-// ─── PERSONEL RENDER ─────────────────────────────────────
+void OnGeri;
+{
+  CallerForm.clShow;
+  AtamaForm.clHide;
+}
 
-procedure RenderPersoneller;
+// ─── PERSONEL LİSTESİ RENDER ─────────────────────────────
+
+procedure RenderPersonelListesi;
 var
   i       : Integer;
   row     : TclProPanel;
@@ -90,174 +109,107 @@ var
   lblIs   : TclProLabel;
   btnSec  : TClProButton;
 {
-  try
-    scrPersoneller.Free;
-  except
-  }
-
-  scrPersoneller = AtamaForm.AddNewVertScrollBox(pnlAtamaAlani, 'scrPer');
-  scrPersoneller.Align = alClient;
-  scrPersoneller.Margins.Top = 4;
-
   for (i = 0 to PersonelSayisi - 1)
   {
     row = AtamaForm.AddNewProPanel(scrPersoneller, 'prow' + IntToStr(i));
-    clComponent.SetupComponent(row, '{"Align":"Top","Height":52,"BackgroundColor":"#F9FAFB","RoundHeight":8,"RoundWidth":8,"BorderWidth":1,"BorderColor":"#E5E7EB","MarginLeft":8,"MarginRight":8,"MarginTop":6}');
+    clComponent.SetupComponent(row, '{"Align":"Top","Height":46,"BackgroundColor":"#FFFFFF","RoundHeight":8,"RoundWidth":8,"BorderWidth":1,"BorderColor":"#E5E7EB","MarginLeft":12,"MarginRight":12,"MarginTop":6}');
 
-    lblAd = AtamaForm.AddNewProLabel(row, 'pad' + IntToStr(i), ArrPerAd.GetItem(i));
-    clComponent.SetupComponent(lblAd, '{"Align":"Left","Width":180,"MarginLeft":12,"TextSize":13,"TextBold":"yes","TextColor":"#111827","TextVerticalAlign":"center","BackgroundColor":"null"}');
+    lblAd = AtamaForm.AddNewProLabel(row, 'lad' + IntToStr(i), ArrPerAd.GetItem(i));
+    clComponent.SetupComponent(lblAd, '{"Align":"Left","Width":140,"MarginLeft":12,"TextSize":14,"TextBold":"yes","TextColor":"#111827","TextVerticalAlign":"center","BackgroundColor":"null"}');
 
-    lblIs = AtamaForm.AddNewProLabel(row, 'pis' + IntToStr(i), 'Aktif is: ' + IntToStr(ArrPerAktifIs.GetItem(i)));
-    clComponent.SetupComponent(lblIs, '{"Align":"Left","Width":90,"TextSize":11,"TextColor":"#6B7280","TextVerticalAlign":"center","BackgroundColor":"null"}');
+    lblIs = AtamaForm.AddNewProLabel(row, 'lis' + IntToStr(i), 'Aktif: ' + IntToStr(ArrPerAktifIs.GetItem(i)));
+    clComponent.SetupComponent(lblIs, '{"Align":"Left","Width":60,"TextSize":11,"TextColor":"#6B7280","TextVerticalAlign":"center","BackgroundColor":"null"}');
 
-    btnSec = AtamaForm.AddNewProButton(row, 'pbtn' + IntToStr(i), 'Sec');
-    btnSec.clTagInt = i;
-    clComponent.SetupComponent(btnSec, '{"Align":"Right","Width":60,"MarginRight":10,"MarginTop":12,"MarginBottom":12,"BackgroundColor":"#6366F1","TextColor":"#FFFFFF","TextSize":12,"RoundHeight":8,"RoundWidth":8,"BorderWidth":0}');
-    btnSec.OnClick = 'OnPersonelSec';
+    if CanBeAssigned(i)
+    {
+      btnSec = AtamaForm.AddNewProButton(row, 'bps' + IntToStr(i), 'Sec');
+      btnSec.clTagInt = i;
+      clComponent.SetupComponent(btnSec, '{"Align":"Right","Width":50,"MarginRight":8,"BackgroundColor":"#6366F1","TextColor":"#FFFFFF","TextSize":11,"RoundHeight":8,"RoundWidth":8,"BorderWidth":0}');
+      btnSec.OnClick = 'OnPersonelSec';
+    }
+    else
+    {
+      btnSec = AtamaForm.AddNewProButton(row, 'bps' + IntToStr(i), 'Dolu');
+      clComponent.SetupComponent(btnSec, '{"Align":"Right","Width":50,"MarginRight":8,"BackgroundColor":"#D1D5DB","TextColor":"#9CA3AF","TextSize":11,"RoundHeight":8,"RoundWidth":8,"BorderWidth":0}');
+    }
   }
-}
-
-// ─── OLAY: PERSONEL SEÇ ──────────────────────────────────
-
-void OnPersonelSec;
-var
-  idx : Integer;
-{
-  idx = TClProButton(AtamaForm.clSender).clTagInt;
-  SeciliPersonelId = ArrPerId.GetItem(idx);
-  SeciliPersonelAd = ArrPerAd.GetItem(idx);
-  lblSonuc.Text = 'Secilen: ' + SeciliPersonelAd;
-}
-
-// ─── OLAY: ATA ────────────────────────────────────────────
-
-void OnAta;
-var
-  YeniOncelik : String;
-{
-  if not CanBeAssigned(SeciliTalepDurum)
-  {
-    lblSonuc.Text = 'Hata: Bu talep ' + SeciliTalepDurum + ' durumunda, atanamaz.';
-    Exit;
-  }
-
-  if (SeciliPersonelId == 0)
-  {
-    lblSonuc.Text = 'Hata: Lutfen bir personel secin.';
-    Exit;
-  }
-
-  YeniOncelik = Trim(edtYeniOncelik.Text);
-  if (YeniOncelik == '')
-    YeniOncelik = SeciliTalepOncelik;
-
-  // Durum gecisi
-  SeciliTalepDurum = 'Atandi';
-
-  // Log kaydi
-  AddDurumLog(
-    SeciliTalepNo,
-    'Atandi',
-    SeciliPersonelAd + ' personeline atandi. Oncelik: ' + YeniOncelik,
-    AktifYoneticiId
-  );
-
-  lblDetayDurum.Text = 'Durum: Atandi';
-  lblDetayOncelik.Text = 'Oncelik: ' + YeniOncelik;
-  lblSonuc.Text = 'Basarili: ' + SeciliTalepNo + ' no lu talep ' + SeciliPersonelAd + ' personeline atandi.';
 }
 
 // ─── UI YAPIMI ────────────────────────────────────────────
 
 procedure BuildAtamaUI;
+var
+  btnAta  : TClProButton;
+  btnGeri : TClProButton;
 {
-  pnlHeader = AtamaForm.AddNewProPanel(AtamaForm, 'pnlH');
+  pnlHeader = AtamaForm.AddNewProPanel(AtamaForm, 'pnlHeader');
   pnlHeader.Align = alMostTop;
   pnlHeader.Height = 50;
-  clComponent.SetupComponent(pnlHeader, '{"BackgroundColor":"#6366F1","BorderWidth":0}');
+  clComponent.SetupComponent(pnlHeader, '{"BackgroundColor":"#6366F1","BorderWidth":0,"RoundHeight":0,"RoundWidth":0}');
 
-  lblTitle = AtamaForm.AddNewProLabel(pnlHeader, 'lblT', 'Personel Atama');
-  clComponent.SetupComponent(lblTitle, '{"Align":"Client","TextSize":16,"TextBold":"yes","TextColor":"#FFFFFF","TextHorizontalAlign":"center","TextVerticalAlign":"center","BackgroundColor":"null"}');
+  btnGeri = AtamaForm.AddNewProButton(pnlHeader, 'btnAGeri', '<');
+  clComponent.SetupComponent(btnGeri, '{"Align":"Left","Width":40,"BackgroundColor":"null","TextColor":"#FFFFFF","TextSize":18,"TextBold":"yes","BorderWidth":0}');
+  btnGeri.OnClick = 'OnGeri';
 
-  pnlTalepDetay = AtamaForm.AddNewProPanel(AtamaForm, 'pnlTD');
-  pnlTalepDetay.Align = alMostTop;
-  pnlTalepDetay.Height = 90;
-  clComponent.SetupComponent(pnlTalepDetay, '{"BackgroundColor":"#F0F1F5","BorderWidth":0,"MarginLeft":12,"MarginRight":12,"MarginTop":10,"RoundHeight":10,"RoundWidth":10}');
+  lblTitle = AtamaForm.AddNewProLabel(pnlHeader, 'lblTitle', 'Personel Atama');
+  clComponent.SetupComponent(lblTitle, '{"Align":"Client","MarginLeft":4,"TextSize":16,"TextBold":"yes","TextColor":"#FFFFFF","TextVerticalAlign":"center","BackgroundColor":"null"}');
 
-  lblDetayNo = AtamaForm.AddNewProLabel(pnlTalepDetay, 'ldno', 'TalepNo: ' + SeciliTalepNo);
-  clComponent.SetupComponent(lblDetayNo, '{"Align":"Top","Height":20,"MarginLeft":12,"MarginTop":8,"TextSize":11,"TextColor":"#6B7280","TextHorizontalAlign":"leading","BackgroundColor":"null"}');
+  // Talep bilgi paneli
+  pnlTalepBilgi = AtamaForm.AddNewProPanel(AtamaForm, 'pnlBilgi');
+  pnlTalepBilgi.Align = alMostTop;
+  pnlTalepBilgi.Height = 90;
+  clComponent.SetupComponent(pnlTalepBilgi, '{"BackgroundColor":"#EEF2FF","RoundHeight":0,"RoundWidth":0,"BorderWidth":0}');
 
-  lblDetayBaslik = AtamaForm.AddNewProLabel(pnlTalepDetay, 'ldbas', SeciliTalepBaslik);
-  clComponent.SetupComponent(lblDetayBaslik, '{"Align":"Top","Height":22,"MarginLeft":12,"TextSize":14,"TextBold":"yes","TextColor":"#111827","TextHorizontalAlign":"leading","BackgroundColor":"null"}');
+  lblTalepNo = AtamaForm.AddNewProLabel(pnlTalepBilgi, 'lblTNo', 'No: ' + ArrTalepNo.GetItem(SeciliTalepIndex));
+  clComponent.SetupComponent(lblTalepNo, '{"Align":"Top","Height":20,"MarginLeft":16,"MarginTop":8,"TextSize":11,"TextColor":"#6B7280","TextHorizontalAlign":"leading","BackgroundColor":"null"}');
 
-  lblDetayOncelik = AtamaForm.AddNewProLabel(pnlTalepDetay, 'ldonc', 'Oncelik: ' + SeciliTalepOncelik);
-  clComponent.SetupComponent(lblDetayOncelik, '{"Align":"Left","Width":140,"MarginLeft":12,"TextSize":12,"TextColor":"#374151","TextVerticalAlign":"center","BackgroundColor":"null"}');
+  lblTalepBaslik = AtamaForm.AddNewProLabel(pnlTalepBilgi, 'lblTBas', ArrBaslik.GetItem(SeciliTalepIndex));
+  clComponent.SetupComponent(lblTalepBaslik, '{"Align":"Top","Height":22,"MarginLeft":16,"TextSize":14,"TextBold":"yes","TextColor":"#111827","TextHorizontalAlign":"leading","BackgroundColor":"null"}');
 
-  lblDetayDurum = AtamaForm.AddNewProLabel(pnlTalepDetay, 'lddur', 'Durum: ' + SeciliTalepDurum);
-  clComponent.SetupComponent(lblDetayDurum, '{"Align":"Left","Width":140,"TextSize":12,"TextColor":"#374151","TextVerticalAlign":"center","BackgroundColor":"null"}');
+  lblTalepOncelik = AtamaForm.AddNewProLabel(pnlTalepBilgi, 'lblTOnc', 'Oncelik: ' + ArrOncelik.GetItem(SeciliTalepIndex));
+  clComponent.SetupComponent(lblTalepOncelik, '{"Align":"Top","Height":18,"MarginLeft":16,"TextSize":12,"TextColor":"'+OncelikRenk(ArrOncelik.GetItem(SeciliTalepIndex))+'","TextHorizontalAlign":"leading","BackgroundColor":"null"}');
 
-  pnlAtamaAlani = AtamaForm.AddNewProPanel(AtamaForm, 'pnlAA');
-  pnlAtamaAlani.Align = alClient;
-  clComponent.SetupComponent(pnlAtamaAlani, '{"BackgroundColor":"#FFFFFF","BorderWidth":0}');
+  lblTalepDurum = AtamaForm.AddNewProLabel(pnlTalepBilgi, 'lblTDur', 'Durum: ' + ArrDurum.GetItem(SeciliTalepIndex));
+  clComponent.SetupComponent(lblTalepDurum, '{"Align":"Top","Height":18,"MarginLeft":16,"TextSize":12,"TextColor":"#374151","TextHorizontalAlign":"leading","BackgroundColor":"null"}');
 
-  lblOncelikSec = AtamaForm.AddNewProLabel(pnlAtamaAlani, 'loncs', 'Oncelik Guncelle (bos birakirsan degismez)');
-  clComponent.SetupComponent(lblOncelikSec, '{"Align":"Top","Height":24,"MarginLeft":12,"MarginTop":10,"TextSize":12,"TextColor":"#374151","TextHorizontalAlign":"leading","BackgroundColor":"null"}');
+  // Personel secim baslik
+  pnlPersonelSec = AtamaForm.AddNewProPanel(AtamaForm, 'pnlPerSec');
+  pnlPersonelSec.Align = alMostTop;
+  pnlPersonelSec.Height = 26;
+  clComponent.SetupComponent(pnlPersonelSec, '{"BackgroundColor":"null","BorderWidth":0}');
 
-  edtYeniOncelik = AtamaForm.AddNewProEdit(pnlAtamaAlani, 'edtYO', 'Dusuk / Orta / Yuksek / Kritik');
-  edtYeniOncelik.Align = alMostTop;
-  edtYeniOncelik.Height = 42;
-  edtYeniOncelik.Margins.Left = 12;
-  edtYeniOncelik.Margins.Right = 12;
-  edtYeniOncelik.Margins.Top = 4;
+  lblPerSecHeader = AtamaForm.AddNewProLabel(pnlPersonelSec, 'lblPSH', 'Personel Sec:');
+  clComponent.SetupComponent(lblPerSecHeader, '{"Align":"Client","MarginLeft":16,"TextSize":13,"TextBold":"yes","TextColor":"#374151","TextVerticalAlign":"center","BackgroundColor":"null"}');
 
-  lblPersonelSec = AtamaForm.AddNewProLabel(pnlAtamaAlani, 'lpers', 'Personel Sec:');
-  clComponent.SetupComponent(lblPersonelSec, '{"Align":"Top","Height":24,"MarginLeft":12,"MarginTop":10,"TextSize":12,"TextColor":"#374151","TextHorizontalAlign":"leading","BackgroundColor":"null"}');
+  // Personel listesi
+  scrPersoneller = AtamaForm.AddNewVertScrollBox(AtamaForm, 'scrPer');
+  scrPersoneller.Align = alClient;
 
-  btnAta = AtamaForm.AddNewProButton(pnlAtamaAlani, 'btnAta', 'Ata ve Onayla');
-  clComponent.SetupComponent(btnAta, '{"Align":"Bottom","Height":46,"MarginLeft":12,"MarginRight":12,"MarginBottom":8,"BackgroundColor":"#16A34A","TextColor":"#FFFFFF","TextSize":14,"TextBold":"yes","RoundHeight":12,"RoundWidth":12,"BorderWidth":0}');
+  // Alt kisim
+  pnlAlt = AtamaForm.AddNewProPanel(AtamaForm, 'pnlAlt');
+  pnlAlt.Align = alBottom;
+  pnlAlt.Height = 80;
+  clComponent.SetupComponent(pnlAlt, '{"BackgroundColor":"#F0F1F5","BorderWidth":0}');
+
+  lblSonuc = AtamaForm.AddNewProLabel(pnlAlt, 'lblSonuc', '');
+  clComponent.SetupComponent(lblSonuc, '{"Align":"Top","Height":26,"MarginLeft":16,"MarginTop":6,"TextSize":12,"TextColor":"#374151","TextHorizontalAlign":"leading","BackgroundColor":"null"}');
+
+  btnAta = AtamaForm.AddNewProButton(pnlAlt, 'btnAta', 'Personel Ata');
+  clComponent.SetupComponent(btnAta, '{"Align":"Bottom","Height":40,"MarginLeft":16,"MarginRight":16,"MarginBottom":8,"BackgroundColor":"#16A34A","TextColor":"#FFFFFF","TextBold":"yes","TextSize":14,"RoundHeight":12,"RoundWidth":12,"BorderWidth":0}');
   btnAta.OnClick = 'OnAta';
-
-  lblSonuc = AtamaForm.AddNewProLabel(pnlAtamaAlani, 'lsonuc', '');
-  clComponent.SetupComponent(lblSonuc, '{"Align":"Bottom","Height":28,"MarginLeft":12,"MarginBottom":10,"TextSize":12,"TextColor":"#374151","TextHorizontalAlign":"leading","BackgroundColor":"null"}');
-
-  RenderPersoneller;
 }
 
 // ─── ANA PROGRAM ─────────────────────────────────────────
 
 {
-  ArrPerAd       = TclArrayString.Create;
-  ArrPerId       = TclArrayInteger.Create;
-  ArrPerAktifIs  = TclArrayInteger.Create;
-  PersonelSayisi = 0;
-
-  ArrDG_TalepNo      = TclArrayString.Create;
-  ArrDG_Durum        = TclArrayString.Create;
-  ArrDG_Not          = TclArrayString.Create;
-  ArrDG_IslemYapanId = TclArrayInteger.Create;
-  ArrDG_Tarih        = TclArrayString.Create;
-
-  // Demo personel
-  ArrPerId.Add(2001); ArrPerAd.Add('Mehmet Kaya'); ArrPerAktifIs.Add(2);
-  ArrPerId.Add(2002); ArrPerAd.Add('Ali Celik'); ArrPerAktifIs.Add(1);
-  ArrPerId.Add(2003); ArrPerAd.Add('Fatma Sahin'); ArrPerAktifIs.Add(0);
-  PersonelSayisi = 3;
-
-  // Demo secili talep (normalde Havuz ekranindan gelir)
-  SeciliTalepNo       = 'TLP-20260417-1';
-  SeciliTalepBaslik   = 'Asansor arizasi B blok';
-  SeciliTalepOncelik  = 'Kritik';
-  SeciliTalepDurum    = 'Yeni';
-
-  SeciliPersonelId    = 0;
-  SeciliPersonelAd    = '';
-  AktifYoneticiId     = 3001;
+  SeciliPersonelIdx = -1;
 
   AtamaForm = TclStyleForm.Create(Self);
   AtamaForm.clSetStyle(AtamaForm.LightSB);
   AtamaForm.clCaption = 'Personel Atama';
 
   BuildAtamaUI;
+  RenderPersonelListesi;
 
   AtamaForm.Run;
 }

@@ -1,26 +1,13 @@
 /*
-  Akilli Ariza ve Saha Operasyon Platformu
   Modul: Giris ve Rol Bazli Kullanici Yonetimi
-  Dil: Clomosy TRObject
-
-  Roller:
-    TalepAcan   - Talep olusturur, kendi taleplerini takip eder
-    SahaPersoneli - Atanan isleri gorur, durum degistirir, QR yapar
-    Yonetici    - Tum isleri gorur, personel atar, dashboard izler
-
-  Bu modul:
-    - Kullanici kimlik dogrulamasi
-    - Rol belirleme
-    - Rol bazli ilk ekrana yonlendirme
+  Unit olarak MainCode tarafindan cagirilir.
+  Oturum ve kullanici dizileri MainCode kapsamından gelir.
 */
 
 var
   GirisForm        : TclStyleForm;
-
   pnlLogo          : TclProPanel;
   lblAppTitle      : TclProLabel;
-  lblVersion       : TclProLabel;
-
   pnlForm          : TclProPanel;
   lblKullaniciAdi  : TclProLabel;
   edtKullaniciAdi  : TClProEdit;
@@ -29,44 +16,6 @@ var
   btnGiris         : TClProButton;
   lblHata          : TclProLabel;
 
-  // Aktif oturum bilgileri (uygulama genelinde kullanilacak global degerler)
-  AktifKullaniciId   : Integer;
-  AktifKullaniciAd   : String;
-  AktifRol           : String;
-
-  // Statik kullanici listesi (MVP - veritabani yerine)
-  ArrKulAdi          : TclArrayString;
-  ArrKulSifre        : TclArrayString;
-  ArrKulRol          : TclArrayString;
-  ArrKulId           : TclArrayInteger;
-  ArrKulAdSoyad      : TclArrayString;
-
-// ─── DEMO KULLANICI VERISI ────────────────────────────────
-
-procedure LoadDemoUsers;
-{
-  // TalepAcan kullanicisi
-  ArrKulId.Add(1001);
-  ArrKulAdi.Add('talep1');
-  ArrKulSifre.Add('1234');
-  ArrKulRol.Add('TalepAcan');
-  ArrKulAdSoyad.Add('Ahmet Yilmaz');
-
-  // Saha Personeli
-  ArrKulId.Add(2001);
-  ArrKulAdi.Add('saha1');
-  ArrKulSifre.Add('1234');
-  ArrKulRol.Add('SahaPersoneli');
-  ArrKulAdSoyad.Add('Mehmet Kaya');
-
-  // Yonetici
-  ArrKulId.Add(3001);
-  ArrKulAdi.Add('yonetici1');
-  ArrKulSifre.Add('1234');
-  ArrKulRol.Add('Yonetici');
-  ArrKulAdSoyad.Add('Ayse Demir');
-}
-
 // ─── KİMLİK DOĞRULAMA ────────────────────────────────────
 
 function AuthenticateUser(KulAdi, Sifre: String): Boolean;
@@ -74,7 +23,6 @@ var
   i : Integer;
 {
   Result = False;
-
   for (i = 0 to ArrKulAdi.Count - 1)
   {
     if ((ArrKulAdi.GetItem(i) == Trim(KulAdi)) && (ArrKulSifre.GetItem(i) == Trim(Sifre)))
@@ -91,17 +39,26 @@ var
 // ─── ROL BAZLI YÖNLENDİRME ───────────────────────────────
 
 procedure NavigateByRole;
+var
+  UnitNext : TclUnit;
 {
-  GirisForm.Hide;
+  UnitNext = TclUnit.Create;
+  UnitNext.CallerForm = GirisForm;
 
   if (AktifRol == 'Yonetici')
-    ShowMessage('[YON] Yonetici paneline hos geldiniz: ' + AktifKullaniciAd)
+    UnitNext.UnitName = 'is_emri_havuzu_module'
   else if (AktifRol == 'SahaPersoneli')
-    ShowMessage('[SAH] Saha is listesine yonlendiriliyorsunuz: ' + AktifKullaniciAd)
+    UnitNext.UnitName = 'saha_personeli_module'
   else if (AktifRol == 'TalepAcan')
-    ShowMessage('[TAL] Talep acma ekranina yonlendiriliyorsunuz: ' + AktifKullaniciAd)
+    UnitNext.UnitName = 'talep_acma_module'
   else
-    ShowMessage('Hata: Tanimsiz rol. Yonetici ile iletisime gecin.');
+  {
+    ShowMessage('Hata: Tanimsiz rol.');
+    Exit;
+  }
+
+  GirisForm.clHide;
+  UnitNext.Run;
 }
 
 // ─── OLAY: GİRİŞ BUTONU ──────────────────────────────────
@@ -165,7 +122,7 @@ procedure BuildGirisUI;
   lblSifre = GirisForm.AddNewProLabel(pnlForm, 'lblSif', 'Sifre');
   clComponent.SetupComponent(lblSifre, '{"Align":"Top","Height":24,"MarginTop":14,"MarginLeft":24,"TextSize":12,"TextColor":"#374151","TextHorizontalAlign":"leading","BackgroundColor":"null"}');
 
-  edtSifre = GirisForm.AddNewProEdit(pnlForm, 'edtSifre', '••••');
+  edtSifre = GirisForm.AddNewProEdit(pnlForm, 'edtSifre', '1234');
   edtSifre.Align = alMostTop;
   edtSifre.Height = 44;
   edtSifre.Margins.Left = 24;
@@ -189,17 +146,9 @@ procedure BuildGirisUI;
 // ─── ANA PROGRAM ─────────────────────────────────────────
 
 {
-  ArrKulId      = TclArrayInteger.Create;
-  ArrKulAdi     = TclArrayString.Create;
-  ArrKulSifre   = TclArrayString.Create;
-  ArrKulRol     = TclArrayString.Create;
-  ArrKulAdSoyad = TclArrayString.Create;
-
-  LoadDemoUsers;
-
   GirisForm = TclStyleForm.Create(Self);
   GirisForm.clSetStyle(GirisForm.LightSB);
-  GirisForm.clCaption = 'Giris - Akilli Ariza Platformu';
+  GirisForm.clCaption = 'Giris';
 
   BuildGirisUI;
 

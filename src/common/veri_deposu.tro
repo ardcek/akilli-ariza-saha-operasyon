@@ -1,0 +1,140 @@
+/*
+  Akilli Ariza ve Saha Operasyon Platformu
+  Ortak Veri Modeli Referansi — veri_deposu.tro
+  Dil: Clomosy TRObject
+
+  Bu dosya, projedeki tum modullerin paylastigi
+  veri dizilerini, oturum degiskenlerini ve ortak
+  yardimci prosedürleri tanimlar.
+
+  Clomosy TRObject'te dosya dahil etme (include/uses)
+  mekanizmasi bulunmadigi icin bu icerik MainCode.tro
+  icinde dogrudan tanimlanir. Bu dosya kanonik
+  referans olarak korunur.
+
+  Modul dosyalari TclUnit kapsam miras yoluyla
+  bu degiskenlere erisir.
+*/
+
+var
+  // ═══════════════ OTURUM ═══════════════
+  AktifKullaniciId   : Integer;
+  AktifKullaniciAd   : String;
+  AktifRol           : String;
+
+  // ═══════════════ KULLANICILAR ═══════════════
+  ArrKulId           : TclArrayInteger;
+  ArrKulAdi          : TclArrayString;
+  ArrKulSifre        : TclArrayString;
+  ArrKulRol          : TclArrayString;
+  ArrKulAdSoyad      : TclArrayString;
+
+  // ═══════════════ TALEPLER ═══════════════
+  ArrTalepNo         : TclArrayString;
+  ArrBaslik          : TclArrayString;
+  ArrAciklama        : TclArrayString;
+  ArrLokasyonId      : TclArrayInteger;
+  ArrKategoriId      : TclArrayInteger;
+  ArrOncelik         : TclArrayString;
+  ArrDurum           : TclArrayString;
+  ArrAcanKullaniciId : TclArrayInteger;
+  ArrAtananPersonelId: TclArrayInteger;
+  ArrAcilisTarihi    : TclArrayString;
+  ArrHedefKapanis    : TclArrayString;
+  ArrKapanisTarihi   : TclArrayString;
+  ArrSonNot          : TclArrayString;
+  ArrQRDogrulandi    : TclArrayInteger;
+  TalepSayisi        : Integer;
+  NextTalepId        : Integer;
+
+  // ═══════════════ PERSONEL ═══════════════
+  ArrPerId           : TclArrayInteger;
+  ArrPerAd           : TclArrayString;
+  ArrPerAktifIs      : TclArrayInteger;
+  PersonelSayisi     : Integer;
+
+  // ═══════════════ DURUM GEÇMİŞİ ═══════════════
+  ArrDG_TalepNo      : TclArrayString;
+  ArrDG_Durum        : TclArrayString;
+  ArrDG_Not          : TclArrayString;
+  ArrDG_IslemYapanId : TclArrayInteger;
+  ArrDG_Tarih        : TclArrayString;
+
+  // ═══════════════ QR LOG ═══════════════
+  ArrQRLog_TalepNo   : TclArrayString;
+  ArrQRLog_QRIcerik  : TclArrayString;
+  ArrQRLog_Durum     : TclArrayString;
+  ArrQRLog_Tarih     : TclArrayString;
+  QRLogSayisi        : Integer;
+
+  // ═══════════════ NAVİGASYON ═══════════════
+  SeciliTalepIndex   : Integer;
+
+// ─── ORTAK YARDIMCI PROSEDÜRLER ──────────────────────────
+
+procedure AddDurumLog(TalepNo, Durum, NotMt: String; YapanId: Integer);
+{
+  ArrDG_TalepNo.Add(TalepNo);
+  ArrDG_Durum.Add(Durum);
+  ArrDG_Not.Add(NotMt);
+  ArrDG_IslemYapanId.Add(YapanId);
+  ArrDG_Tarih.Add(FormatDateTime('dd.mm.yyyy hh:nn:ss', Now));
+}
+
+function IsSLABreached(HedefStr: String): Boolean;
+var
+  HedefISO, NowISO : String;
+{
+  Result = False;
+  if (Trim(HedefStr) == '') then Exit;
+  if (Length(HedefStr) >= 16)
+  {
+    HedefISO = Copy(HedefStr, 7, 4) + Copy(HedefStr, 4, 2) + Copy(HedefStr, 1, 2) +
+               Copy(HedefStr, 12, 2) + Copy(HedefStr, 15, 2);
+    NowISO = FormatDateTime('yyyymmddhhnn', Now);
+    if (HedefISO < NowISO)
+      Result = True;
+  }
+}
+
+function OncelikRenk(Oncelik: String): String;
+{
+  if (Oncelik == 'Kritik')
+    Result = '#DC2626'
+  else if (Oncelik == 'Yuksek')
+    Result = '#D97706'
+  else if (Oncelik == 'Orta')
+    Result = '#6366F1'
+  else
+    Result = '#6B7280';
+}
+
+function CalculateSLAHedefKapanis(OncelikText: String): String;
+var
+  HedefSaat : Integer;
+{
+  if (OncelikText == 'Kritik')
+    HedefSaat = 8
+  else if (OncelikText == 'Yuksek')
+    HedefSaat = 24
+  else if (OncelikText == 'Orta')
+    HedefSaat = 48
+  else
+    HedefSaat = 72;
+  Result = FormatDateTime('dd.mm.yyyy hh:nn', Now + (HedefSaat / 24));
+}
+
+function GetPersonelAdById(PerId: Integer): String;
+var
+  i : Integer;
+{
+  Result = '';
+  for (i = 0 to PersonelSayisi - 1)
+  {
+    if (ArrPerId.GetItem(i) == PerId)
+    {
+      Result = ArrPerAd.GetItem(i);
+      Exit;
+    }
+  }
+}

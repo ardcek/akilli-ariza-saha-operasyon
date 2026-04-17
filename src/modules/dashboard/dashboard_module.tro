@@ -1,188 +1,170 @@
 /*
-  Akilli Ariza ve Saha Operasyon Platformu
-  Modul: Yonetim Paneli (Dashboard)
-  Dil: Clomosy TRObject
-
-  Bu modul:
-    - Acik / Beklemede / Tamamlandi / Iptal is sayilarini gosterir
-    - SLA Asilmis talepleri listeler
-    - Gün bazli ortalama kapaniş suresini hesaplar
-    - Durum dagılımı ozeti goster
+  Modul: Dashboard
+  Unit olarak is_emri_havuzu_module tarafindan cagirilir.
+  Tum veri dizileri ve IsSLABreached MainCode kapsamından gelir.
 */
 
 var
-  DashForm       : TclStyleForm;
+  DashForm         : TclStyleForm;
+  pnlHeader        : TclProPanel;
+  lblTitle         : TclProLabel;
+  scrDash          : TclVertScrollBox;
 
-  pnlHeader      : TclProPanel;
-  lblTitle       : TclProLabel;
-
-  scrMain        : TclVertScrollBox;
-
-  // Veri
-  ArrTalepNo     : TclArrayString;
-  ArrDurum       : TclArrayString;
-  ArrOncelik     : TclArrayString;
-  ArrKayitTarihi : TclArrayString;
-  ArrKapanisTar  : TclArrayString;  // '' = henuz kapanis yok
-  TalepSayisi    : Integer;
-
-// ─── DEMO VERİ ───────────────────────────────────────────
-
-procedure LoadDemoData;
-{
-  ArrTalepNo.Add('TLP-20260417-1'); ArrDurum.Add('Atandi');
-  ArrOncelik.Add('Kritik');
-  ArrKayitTarihi.Add('17.04.2026 08:00:00'); ArrKapanisTar.Add('');
-
-  ArrTalepNo.Add('TLP-20260417-2'); ArrDurum.Add('Tamamlandi');
-  ArrOncelik.Add('Yuksek');
-  ArrKayitTarihi.Add('17.04.2026 09:00:00'); ArrKapanisTar.Add('17.04.2026 14:30:00');
-
-  ArrTalepNo.Add('TLP-20260417-3'); ArrDurum.Add('Yolda');
-  ArrOncelik.Add('Orta');
-  ArrKayitTarihi.Add('17.04.2026 10:00:00'); ArrKapanisTar.Add('');
-
-  ArrTalepNo.Add('TLP-20260417-4'); ArrDurum.Add('Islemde');
-  ArrOncelik.Add('Dusuk');
-  ArrKayitTarihi.Add('17.04.2026 11:00:00'); ArrKapanisTar.Add('');
-
-  ArrTalepNo.Add('TLP-20260417-5'); ArrDurum.Add('Iptal');
-  ArrOncelik.Add('Orta');
-  ArrKayitTarihi.Add('17.04.2026 12:00:00'); ArrKapanisTar.Add('17.04.2026 12:30:00');
-
-  ArrTalepNo.Add('TLP-20260417-6'); ArrDurum.Add('Beklemede');
-  ArrOncelik.Add('Kritik');
-  ArrKayitTarihi.Add('17.04.2026 06:00:00'); ArrKapanisTar.Add('');
-
-  TalepSayisi = 6;
-}
-
-// ─── İSTATİSTİK HESAPLAMA ────────────────────────────────
+// ─── DASHBOARD RENDER ─────────────────────────────────────
 
 procedure RenderDashboard;
 var
-  i              : Integer;
-  cAcik          : Integer;
-  cBeklemede     : Integer;
-  cTamamlandi    : Integer;
-  cIptal         : Integer;
-  cSLAAsilan     : Integer;
-  SLAListesi     : String;
-
-  pnlStatRow1    : TclProPanel;
-  pnlStatRow2    : TclProPanel;
-  pnlStat        : TclProPanel;
-  lblStatSayi    : TclProLabel;
-  lblStatBaslik  : TclProLabel;
-
-  pnlSLA         : TclProPanel;
-  lblSLABaslik   : TclProLabel;
-  lblSLASatir    : TclProLabel;
+  i             : Integer;
+  cYeni         : Integer;
+  cAtandi       : Integer;
+  cYolda        : Integer;
+  cIslemde      : Integer;
+  cBeklemede    : Integer;
+  cTamamlandi   : Integer;
+  cIptal        : Integer;
+  cSLAAsilan    : Integer;
+  cQRYapilan    : Integer;
+  Durum         : String;
+  pnlKart       : TclProPanel;
+  lblK          : TclProLabel;
+  pnlSLA        : TclProPanel;
+  lblSLAHeader  : TclProLabel;
+  lblSLAList    : TclProLabel;
+  SLAListeStr   : String;
 {
   try
-    scrMain.Free;
+    scrDash.Free;
   except
   }
 
-  scrMain = DashForm.AddNewVertScrollBox(DashForm, 'scrMain');
-  scrMain.Align = alClient;
+  scrDash = DashForm.AddNewVertScrollBox(DashForm, 'scrDash');
+  scrDash.Align = alClient;
 
-  cAcik = 0; cBeklemede = 0; cTamamlandi = 0; cIptal = 0; cSLAAsilan = 0;
-  SLAListesi = '';
+  cYeni = 0; cAtandi = 0; cYolda = 0; cIslemde = 0; cBeklemede = 0;
+  cTamamlandi = 0; cIptal = 0; cSLAAsilan = 0; cQRYapilan = 0;
+  SLAListeStr = '';
 
   for (i = 0 to TalepSayisi - 1)
   {
-    if (ArrDurum.GetItem(i) == 'Yeni') or (ArrDurum.GetItem(i) == 'Atandi') or (ArrDurum.GetItem(i) == 'Yolda') or (ArrDurum.GetItem(i) == 'Islemde')
-      cAcik = cAcik + 1;
-    if (ArrDurum.GetItem(i) == 'Beklemede')
-      cBeklemede = cBeklemede + 1;
-    if (ArrDurum.GetItem(i) == 'Tamamlandi')
-      cTamamlandi = cTamamlandi + 1;
-    if (ArrDurum.GetItem(i) == 'Iptal')
-      cIptal = cIptal + 1;
+    Durum = ArrDurum.GetItem(i);
+    if (Durum == 'Yeni') then cYeni = cYeni + 1
+    else if (Durum == 'Atandi') then cAtandi = cAtandi + 1
+    else if (Durum == 'Yolda') then cYolda = cYolda + 1
+    else if (Durum == 'Islemde') then cIslemde = cIslemde + 1
+    else if (Durum == 'Beklemede') then cBeklemede = cBeklemede + 1
+    else if (Durum == 'Tamamlandi') then cTamamlandi = cTamamlandi + 1
+    else if (Durum == 'Iptal') then cIptal = cIptal + 1;
+
+    if (ArrQRDogrulandi.GetItem(i) == 1) then cQRYapilan = cQRYapilan + 1;
+
+    // SLA kontrolu (sadece acik talepler)
+    if ((Durum <> 'Tamamlandi') && (Durum <> 'Iptal'))
+    {
+      if (IsSLABreached(ArrHedefKapanis.GetItem(i)))
+      {
+        cSLAAsilan = cSLAAsilan + 1;
+        if (SLAListeStr <> '') then SLAListeStr = SLAListeStr + ', ';
+        SLAListeStr = SLAListeStr + ArrTalepNo.GetItem(i);
+      }
+    }
   }
 
-  // Stat satiri 1: Acik + Beklemede
-  pnlStatRow1 = DashForm.AddNewProPanel(scrMain, 'pnlSR1');
-  clComponent.SetupComponent(pnlStatRow1, '{"Align":"Top","Height":90,"BackgroundColor":"null","BorderWidth":0,"MarginTop":12}');
+  // Genel ozet karti
+  pnlKart = DashForm.AddNewProPanel(scrDash, 'pnlOzet');
+  clComponent.SetupComponent(pnlKart, '{"Align":"Top","Height":140,"BackgroundColor":"#FFFFFF","RoundHeight":12,"RoundWidth":12,"BorderWidth":1,"BorderColor":"#E5E7EB","MarginLeft":12,"MarginRight":12,"MarginTop":12}');
 
-  pnlStat = DashForm.AddNewProPanel(pnlStatRow1, 'pSt1');
-  clComponent.SetupComponent(pnlStat, '{"Align":"Left","Width":155,"Height":80,"BackgroundColor":"#EFF6FF","RoundHeight":10,"RoundWidth":10,"BorderWidth":1,"BorderColor":"#BFDBFE","MarginLeft":12,"MarginTop":4}');
-  lblStatSayi = DashForm.AddNewProLabel(pnlStat, 'ls1', IntToStr(cAcik));
-  clComponent.SetupComponent(lblStatSayi, '{"Align":"Top","Height":44,"TextSize":28,"TextBold":"yes","TextColor":"#2563EB","TextHorizontalAlign":"center","BackgroundColor":"null","MarginTop":8}');
-  lblStatBaslik = DashForm.AddNewProLabel(pnlStat, 'lb1', 'Acik Isler');
-  clComponent.SetupComponent(lblStatBaslik, '{"Align":"Top","Height":22,"TextSize":12,"TextColor":"#1D4ED8","TextHorizontalAlign":"center","BackgroundColor":"null"}');
+  lblK = DashForm.AddNewProLabel(pnlKart, 'loz1', 'Genel Ozet');
+  clComponent.SetupComponent(lblK, '{"Align":"Top","Height":24,"MarginLeft":16,"MarginTop":8,"TextSize":14,"TextBold":"yes","TextColor":"#111827","TextHorizontalAlign":"leading","BackgroundColor":"null"}');
 
-  pnlStat = DashForm.AddNewProPanel(pnlStatRow1, 'pSt2');
-  clComponent.SetupComponent(pnlStat, '{"Align":"Left","Width":155,"Height":80,"BackgroundColor":"#FFFBEB","RoundHeight":10,"RoundWidth":10,"BorderWidth":1,"BorderColor":"#FDE68A","MarginLeft":8,"MarginTop":4}');
-  lblStatSayi = DashForm.AddNewProLabel(pnlStat, 'ls2', IntToStr(cBeklemede));
-  clComponent.SetupComponent(lblStatSayi, '{"Align":"Top","Height":44,"TextSize":28,"TextBold":"yes","TextColor":"#D97706","TextHorizontalAlign":"center","BackgroundColor":"null","MarginTop":8}');
-  lblStatBaslik = DashForm.AddNewProLabel(pnlStat, 'lb2', 'Beklemede');
-  clComponent.SetupComponent(lblStatBaslik, '{"Align":"Top","Height":22,"TextSize":12,"TextColor":"#92400E","TextHorizontalAlign":"center","BackgroundColor":"null"}');
+  lblK = DashForm.AddNewProLabel(pnlKart, 'loz2', 'Toplam Talep: ' + IntToStr(TalepSayisi));
+  clComponent.SetupComponent(lblK, '{"Align":"Top","Height":18,"MarginLeft":16,"TextSize":12,"TextColor":"#374151","TextHorizontalAlign":"leading","BackgroundColor":"null"}');
 
-  // Stat satiri 2: Tamamlandi + Iptal
-  pnlStatRow2 = DashForm.AddNewProPanel(scrMain, 'pnlSR2');
-  clComponent.SetupComponent(pnlStatRow2, '{"Align":"Top","Height":90,"BackgroundColor":"null","BorderWidth":0}');
+  lblK = DashForm.AddNewProLabel(pnlKart, 'loz3', 'Yeni: ' + IntToStr(cYeni) + '  |  Atandi: ' + IntToStr(cAtandi) + '  |  Yolda: ' + IntToStr(cYolda));
+  clComponent.SetupComponent(lblK, '{"Align":"Top","Height":18,"MarginLeft":16,"TextSize":11,"TextColor":"#6B7280","TextHorizontalAlign":"leading","BackgroundColor":"null"}');
 
-  pnlStat = DashForm.AddNewProPanel(pnlStatRow2, 'pSt3');
-  clComponent.SetupComponent(pnlStat, '{"Align":"Left","Width":155,"Height":80,"BackgroundColor":"#F0FDF4","RoundHeight":10,"RoundWidth":10,"BorderWidth":1,"BorderColor":"#BBF7D0","MarginLeft":12,"MarginTop":4}');
-  lblStatSayi = DashForm.AddNewProLabel(pnlStat, 'ls3', IntToStr(cTamamlandi));
-  clComponent.SetupComponent(lblStatSayi, '{"Align":"Top","Height":44,"TextSize":28,"TextBold":"yes","TextColor":"#16A34A","TextHorizontalAlign":"center","BackgroundColor":"null","MarginTop":8}');
-  lblStatBaslik = DashForm.AddNewProLabel(pnlStat, 'lb3', 'Tamamlandi');
-  clComponent.SetupComponent(lblStatBaslik, '{"Align":"Top","Height":22,"TextSize":12,"TextColor":"#15803D","TextHorizontalAlign":"center","BackgroundColor":"null"}');
+  lblK = DashForm.AddNewProLabel(pnlKart, 'loz4', 'Islemde: ' + IntToStr(cIslemde) + '  |  Beklemede: ' + IntToStr(cBeklemede));
+  clComponent.SetupComponent(lblK, '{"Align":"Top","Height":18,"MarginLeft":16,"TextSize":11,"TextColor":"#6B7280","TextHorizontalAlign":"leading","BackgroundColor":"null"}');
 
-  pnlStat = DashForm.AddNewProPanel(pnlStatRow2, 'pSt4');
-  clComponent.SetupComponent(pnlStat, '{"Align":"Left","Width":155,"Height":80,"BackgroundColor":"#FEF2F2","RoundHeight":10,"RoundWidth":10,"BorderWidth":1,"BorderColor":"#FECACA","MarginLeft":8,"MarginTop":4}');
-  lblStatSayi = DashForm.AddNewProLabel(pnlStat, 'ls4', IntToStr(cIptal));
-  clComponent.SetupComponent(lblStatSayi, '{"Align":"Top","Height":44,"TextSize":28,"TextBold":"yes","TextColor":"#DC2626","TextHorizontalAlign":"center","BackgroundColor":"null","MarginTop":8}');
-  lblStatBaslik = DashForm.AddNewProLabel(pnlStat, 'lb4', 'Iptal Edilen');
-  clComponent.SetupComponent(lblStatBaslik, '{"Align":"Top","Height":22,"TextSize":12,"TextColor":"#B91C1C","TextHorizontalAlign":"center","BackgroundColor":"null"}');
+  lblK = DashForm.AddNewProLabel(pnlKart, 'loz5', 'Tamamlandi: ' + IntToStr(cTamamlandi) + '  |  Iptal: ' + IntToStr(cIptal));
+  clComponent.SetupComponent(lblK, '{"Align":"Top","Height":18,"MarginLeft":16,"TextSize":11,"TextColor":"#6B7280","TextHorizontalAlign":"leading","BackgroundColor":"null"}');
 
-  // SLA ozeti
-  pnlSLA = DashForm.AddNewProPanel(scrMain, 'pnlSLA');
-  clComponent.SetupComponent(pnlSLA, '{"Align":"Top","Height":100,"BackgroundColor":"#FEF2F2","RoundHeight":8,"RoundWidth":8,"BorderWidth":1,"BorderColor":"#FECACA","MarginLeft":12,"MarginRight":12,"MarginTop":12}');
+  lblK = DashForm.AddNewProLabel(pnlKart, 'loz6', 'QR Dogrulanan: ' + IntToStr(cQRYapilan));
+  clComponent.SetupComponent(lblK, '{"Align":"Top","Height":18,"MarginLeft":16,"TextSize":11,"TextColor":"#16A34A","TextHorizontalAlign":"leading","BackgroundColor":"null"}');
 
-  lblSLABaslik = DashForm.AddNewProLabel(pnlSLA, 'lblSLAT', 'SLA Durumu');
-  clComponent.SetupComponent(lblSLABaslik, '{"Align":"Top","Height":26,"MarginLeft":12,"MarginTop":8,"TextSize":13,"TextBold":"yes","TextColor":"#DC2626","TextHorizontalAlign":"leading","BackgroundColor":"null"}');
+  // SLA karti
+  if (cSLAAsilan > 0)
+  {
+    pnlSLA = DashForm.AddNewProPanel(scrDash, 'pnlSLA');
+    clComponent.SetupComponent(pnlSLA, '{"Align":"Top","Height":80,"BackgroundColor":"#FEF2F2","RoundHeight":12,"RoundWidth":12,"BorderWidth":1,"BorderColor":"#FECACA","MarginLeft":12,"MarginRight":12,"MarginTop":12}');
 
-  lblSLASatir = DashForm.AddNewProLabel(pnlSLA, 'lblSLAS', 'Toplam: ' + IntToStr(TalepSayisi) + ' talep  |  Acik: ' + IntToStr(cAcik) + '  |  Kritik: 2');
-  clComponent.SetupComponent(lblSLASatir, '{"Align":"Top","Height":22,"MarginLeft":12,"TextSize":12,"TextColor":"#7F1D1D","TextHorizontalAlign":"leading","BackgroundColor":"null"}');
+    lblSLAHeader = DashForm.AddNewProLabel(pnlSLA, 'lsla1', 'SLA Asilan Talepler: ' + IntToStr(cSLAAsilan));
+    clComponent.SetupComponent(lblSLAHeader, '{"Align":"Top","Height":24,"MarginLeft":16,"MarginTop":8,"TextSize":14,"TextBold":"yes","TextColor":"#DC2626","TextHorizontalAlign":"leading","BackgroundColor":"null"}');
 
-  lblSLASatir = DashForm.AddNewProLabel(pnlSLA, 'lblSLAS2', 'SLA ihlali takibi icin Rapor modulunu kullanin.');
-  clComponent.SetupComponent(lblSLASatir, '{"Align":"Top","Height":20,"MarginLeft":12,"TextSize":11,"TextColor":"#6B7280","TextHorizontalAlign":"leading","BackgroundColor":"null"}');
+    lblSLAList = DashForm.AddNewProLabel(pnlSLA, 'lsla2', SLAListeStr);
+    clComponent.SetupComponent(lblSLAList, '{"Align":"Top","Height":36,"MarginLeft":16,"MarginRight":16,"TextSize":11,"TextColor":"#991B1B","TextHorizontalAlign":"leading","BackgroundColor":"null","WordWrap":"yes"}');
+  }
+  else
+  {
+    pnlSLA = DashForm.AddNewProPanel(scrDash, 'pnlSLA');
+    clComponent.SetupComponent(pnlSLA, '{"Align":"Top","Height":50,"BackgroundColor":"#F0FDF4","RoundHeight":12,"RoundWidth":12,"BorderWidth":1,"BorderColor":"#BBF7D0","MarginLeft":12,"MarginRight":12,"MarginTop":12}');
+
+    lblSLAHeader = DashForm.AddNewProLabel(pnlSLA, 'lsla1', 'SLA: Tum talepler suresi icinde');
+    clComponent.SetupComponent(lblSLAHeader, '{"Align":"Client","MarginLeft":16,"TextSize":14,"TextBold":"yes","TextColor":"#16A34A","TextVerticalAlign":"center","BackgroundColor":"null"}');
+  }
+
+  // Personel is dagilimi karti
+  var pnlPer : TclProPanel;
+  var j      : Integer;
+
+  pnlPer = DashForm.AddNewProPanel(scrDash, 'pnlPer');
+  clComponent.SetupComponent(pnlPer, '{"Align":"Top","Height":' + IntToStr(30 + PersonelSayisi * 22) + ',"BackgroundColor":"#FFFFFF","RoundHeight":12,"RoundWidth":12,"BorderWidth":1,"BorderColor":"#E5E7EB","MarginLeft":12,"MarginRight":12,"MarginTop":12,"MarginBottom":12}');
+
+  lblK = DashForm.AddNewProLabel(pnlPer, 'lper0', 'Personel Is Dagilimi');
+  clComponent.SetupComponent(lblK, '{"Align":"Top","Height":26,"MarginLeft":16,"MarginTop":8,"TextSize":14,"TextBold":"yes","TextColor":"#111827","TextHorizontalAlign":"leading","BackgroundColor":"null"}');
+
+  for (j = 0 to PersonelSayisi - 1)
+  {
+    lblK = DashForm.AddNewProLabel(pnlPer, 'lper' + IntToStr(j + 1), ArrPerAd.GetItem(j) + ': ' + IntToStr(ArrPerAktifIs.GetItem(j)) + ' aktif is');
+    clComponent.SetupComponent(lblK, '{"Align":"Top","Height":20,"MarginLeft":16,"TextSize":12,"TextColor":"#374151","TextHorizontalAlign":"leading","BackgroundColor":"null"}');
+  }
+}
+
+// ─── OLAYLAR ──────────────────────────────────────────────
+
+void OnGeri;
+{
+  CallerForm.clShow;
+  DashForm.clHide;
 }
 
 // ─── UI YAPIMI ────────────────────────────────────────────
 
 procedure BuildDashUI;
+var
+  btnGeri : TClProButton;
 {
-  pnlHeader = DashForm.AddNewProPanel(DashForm, 'pnlH');
+  pnlHeader = DashForm.AddNewProPanel(DashForm, 'pnlHeader');
   pnlHeader.Align = alMostTop;
   pnlHeader.Height = 50;
-  clComponent.SetupComponent(pnlHeader, '{"BackgroundColor":"#1E293B","BorderWidth":0}');
+  clComponent.SetupComponent(pnlHeader, '{"BackgroundColor":"#1E293B","BorderWidth":0,"RoundHeight":0,"RoundWidth":0}');
 
-  lblTitle = DashForm.AddNewProLabel(pnlHeader, 'lblT', 'Yonetim Paneli');
-  clComponent.SetupComponent(lblTitle, '{"Align":"Left","Width":200,"MarginLeft":16,"TextSize":16,"TextBold":"yes","TextColor":"#FFFFFF","TextVerticalAlign":"center","BackgroundColor":"null"}');
+  btnGeri = DashForm.AddNewProButton(pnlHeader, 'btnDGeri', '<');
+  clComponent.SetupComponent(btnGeri, '{"Align":"Left","Width":40,"BackgroundColor":"null","TextColor":"#FFFFFF","TextSize":18,"TextBold":"yes","BorderWidth":0}');
+  btnGeri.OnClick = 'OnGeri';
 
-  RenderDashboard;
+  lblTitle = DashForm.AddNewProLabel(pnlHeader, 'lblTitle', 'Dashboard');
+  clComponent.SetupComponent(lblTitle, '{"Align":"Client","MarginLeft":4,"TextSize":16,"TextBold":"yes","TextColor":"#FFFFFF","TextVerticalAlign":"center","BackgroundColor":"null"}');
 }
 
 // ─── ANA PROGRAM ─────────────────────────────────────────
 
 {
-  ArrTalepNo     = TclArrayString.Create;
-  ArrDurum       = TclArrayString.Create;
-  ArrOncelik     = TclArrayString.Create;
-  ArrKayitTarihi = TclArrayString.Create;
-  ArrKapanisTar  = TclArrayString.Create;
-
-  LoadDemoData;
-
   DashForm = TclStyleForm.Create(Self);
   DashForm.clSetStyle(DashForm.LightSB);
   DashForm.clCaption = 'Dashboard';
 
   BuildDashUI;
+  RenderDashboard;
 
   DashForm.Run;
 }

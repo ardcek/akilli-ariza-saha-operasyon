@@ -1,53 +1,29 @@
 /*
-  Akilli Ariza ve Saha Operasyon Platformu
   Modul: Talep Acma
-  Dil: Clomosy TRObject
+  Unit olarak giris_module veya is_emri_havuzu_module tarafindan cagirilir.
+  Tum veri dizileri ve oturum bilgisi MainCode kapsamından gelir.
 */
 
 var
-  TalepForm             : TclStyleForm;
+  TalepForm         : TclStyleForm;
+  lblTitle          : TclProLabel;
+  edtBaslik         : TClProEdit;
+  edtAciklama       : TClProEdit;
+  edtLokasyonId     : TClProEdit;
+  edtKategoriId     : TClProEdit;
+  edtOncelik        : TClProEdit;
+  btnKaydet         : TClProButton;
+  btnTemizle        : TClProButton;
+  btnGeri           : TClProButton;
 
-  lblTitle              : TclProLabel;
-  edtBaslik             : TClProEdit;
-  edtAciklama           : TClProEdit;
-  edtLokasyonId         : TClProEdit;
-  edtKategoriId         : TClProEdit;
-  edtOncelik            : TClProEdit;
-  btnKaydet             : TClProButton;
-  btnTemizle            : TClProButton;
-
-  AktifKullaniciId      : Integer;
-  AktifRol              : String;
-
-  NextTalepId           : Integer;
-
-  ArrTalepNo            : TclArrayString;
-  ArrBaslik             : TclArrayString;
-  ArrAciklama           : TclArrayString;
-  ArrLokasyonId         : TclArrayInteger;
-  ArrKategoriId         : TclArrayInteger;
-  ArrOncelik            : TclArrayString;
-  ArrDurum              : TclArrayString;
-  ArrAcanKullaniciId    : TclArrayInteger;
-  ArrAtananPersonelId   : TclArrayInteger;
-  ArrAcilisTarihi       : TclArrayString;
-  ArrHedefKapanis       : TclArrayString;
-  ArrKapanisTarihi      : TclArrayString;
-  ArrSonNot             : TclArrayString;
-
-  ArrDG_TalepNo         : TclArrayString;
-  ArrDG_Durum           : TclArrayString;
-  ArrDG_Not             : TclArrayString;
-  ArrDG_IslemYapanId    : TclArrayInteger;
-  ArrDG_Tarih           : TclArrayString;
+// ─── TALEP NO ÜRETİCİ ────────────────────────────────────
 
 function GenerateTalepNo: String;
 var
-  Prefix, Ts : String;
+  Ts : String;
 {
-  Prefix = 'TLP';
   Ts = FormatDateTime('yyyymmddhhnnss', Now);
-  Result = Prefix + '-' + Ts + '-' + IntToStr(NextTalepId);
+  Result = 'TLP-' + Ts + '-' + IntToStr(NextTalepId);
 }
 
 function IsRoleAllowedToCreate: Boolean;
@@ -61,91 +37,31 @@ function IsRoleAllowedToCreate: Boolean;
 function ValidateTalepForm(Baslik, Aciklama, LokasyonText, KategoriText, OncelikText: String): Boolean;
 {
   Result = False;
-
-  if (Trim(Baslik) == '')
-  {
-    ShowMessage('Hata: Baslik bos birakilamaz.');
-    Exit;
-  }
-
-  if (Trim(Aciklama) == '')
-  {
-    ShowMessage('Hata: Aciklama bos birakilamaz.');
-    Exit;
-  }
-
-  if (Trim(LokasyonText) == '')
-  {
-    ShowMessage('Hata: Lokasyon bos birakilamaz.');
-    Exit;
-  }
-
-  if (Trim(KategoriText) == '')
-  {
-    ShowMessage('Hata: Kategori bos birakilamaz.');
-    Exit;
-  }
-
-  if (Trim(OncelikText) == '')
-  {
-    ShowMessage('Hata: Oncelik bos birakilamaz.');
-    Exit;
-  }
-
-  if (Length(Trim(Baslik)) < 5)
-  {
-    ShowMessage('Hata: Baslik en az 5 karakter olmali.');
-    Exit;
-  }
-
+  if (Trim(Baslik) == '') { ShowMessage('Hata: Baslik bos birakilamaz.'); Exit; }
+  if (Trim(Aciklama) == '') { ShowMessage('Hata: Aciklama bos birakilamaz.'); Exit; }
+  if (Trim(LokasyonText) == '') { ShowMessage('Hata: Lokasyon bos birakilamaz.'); Exit; }
+  if (Trim(KategoriText) == '') { ShowMessage('Hata: Kategori bos birakilamaz.'); Exit; }
+  if (Trim(OncelikText) == '') { ShowMessage('Hata: Oncelik bos birakilamaz.'); Exit; }
+  if (Length(Trim(Baslik)) < 5) { ShowMessage('Hata: Baslik en az 5 karakter olmali.'); Exit; }
   Result = True;
-}
-
-procedure AddInitialDurumKaydi(TalepNo: String; IslemYapanId: Integer);
-{
-  ArrDG_TalepNo.Add(TalepNo);
-  ArrDG_Durum.Add('Yeni');
-  ArrDG_Not.Add('Talep olusturuldu.');
-  ArrDG_IslemYapanId.Add(IslemYapanId);
-  ArrDG_Tarih.Add(FormatDateTime('dd.mm.yyyy hh:nn:ss', Now));
-}
-
-function CalculateSLAHedefKapanis(OncelikText: String): String;
-var
-  HedefSaat : Integer;
-{
-  HedefSaat = 72;
-
-  if (OncelikText == 'Kritik')
-    HedefSaat = 8
-  else if (OncelikText == 'Yuksek')
-    HedefSaat = 24
-  else if (OncelikText == 'Orta')
-    HedefSaat = 48
-  else
-    HedefSaat = 72;
-
-  Result = FormatDateTime('dd.mm.yyyy hh:nn', Now + (HedefSaat / 24));
 }
 
 function SaveTalep: Boolean;
 var
-  LBaslik, LAciklama, LLokasyon, LKategori, LOncelik : String;
-  TalepNo : String;
+  LBaslik, LAciklama, LLokasyon, LKategori, LOncelik, TalepNo : String;
 {
   Result = False;
-
   if not IsRoleAllowedToCreate
   {
     ShowMessage('Hata: Bu islemi yapmak icin yetkiniz yok.');
     Exit;
   }
 
-  LBaslik = Trim(edtBaslik.Text);
-  LAciklama = Trim(edtAciklama.Text);
-  LLokasyon = Trim(edtLokasyonId.Text);
-  LKategori = Trim(edtKategoriId.Text);
-  LOncelik = Trim(edtOncelik.Text);
+  LBaslik    = Trim(edtBaslik.Text);
+  LAciklama  = Trim(edtAciklama.Text);
+  LLokasyon  = Trim(edtLokasyonId.Text);
+  LKategori  = Trim(edtKategoriId.Text);
+  LOncelik   = Trim(edtOncelik.Text);
 
   if not ValidateTalepForm(LBaslik, LAciklama, LLokasyon, LKategori, LOncelik)
     Exit;
@@ -161,32 +77,31 @@ var
   ArrDurum.Add('Yeni');
   ArrAcanKullaniciId.Add(AktifKullaniciId);
   ArrAtananPersonelId.Add(0);
-  ArrAcilisTarihi.Add(FormatDateTime('dd.mm.yyyy hh:nn:ss', Now));
+  ArrAcilisTarihi.Add(FormatDateTime('dd.mm.yyyy hh:nn', Now));
   ArrHedefKapanis.Add(CalculateSLAHedefKapanis(LOncelik));
   ArrKapanisTarihi.Add('');
   ArrSonNot.Add('');
+  ArrQRDogrulandi.Add(0);
 
-  AddInitialDurumKaydi(TalepNo, AktifKullaniciId);
+  AddDurumLog(TalepNo, 'Yeni', 'Talep olusturuldu.', AktifKullaniciId);
 
+  TalepSayisi = TalepSayisi + 1;
   NextTalepId = NextTalepId + 1;
   Result = True;
 }
 
-procedure NavigateAfterSave;
-{
-  ShowMessage('Talep kaydedildi. Is Emri Havuzu ekranina yonlendiriliyorsunuz.');
-}
+// ─── OLAYLAR ──────────────────────────────────────────────
 
 void OnKaydet;
 {
   if SaveTalep
   {
     ShowMessage('Basarili: Talep kaydedildi.');
-    NavigateAfterSave;
-  }
-  else
-  {
-    ShowMessage('Kayit tamamlanamadi. Lutfen alanlari kontrol edin.');
+    edtBaslik.Text = '';
+    edtAciklama.Text = '';
+    edtLokasyonId.Text = '';
+    edtKategoriId.Text = '';
+    edtOncelik.Text = '';
   }
 }
 
@@ -197,101 +112,68 @@ void OnTemizle;
   edtLokasyonId.Text = '';
   edtKategoriId.Text = '';
   edtOncelik.Text = '';
-  ShowMessage('Form temizlendi.');
 }
+
+void OnGeri;
+{
+  CallerForm.clShow;
+  TalepForm.clHide;
+}
+
+// ─── UI YAPIMI ────────────────────────────────────────────
 
 procedure BuildTalepAcmaUI;
 {
-  lblTitle = TalepForm.AddNewProLabel(TalepForm, 'lblTitle', 'Talep Acma Modulu');
+  lblTitle = TalepForm.AddNewProLabel(TalepForm, 'lblTitle', 'Talep Acma — ' + AktifKullaniciAd);
   lblTitle.Align = alMostTop;
-  lblTitle.Height = 40;
-  clComponent.SetupComponent(lblTitle, '{"TextSize":20,"TextBold":"yes","TextHorizontalAlign":"center","TextVerticalAlign":"center","BackgroundColor":"null"}');
+  lblTitle.Height = 44;
+  clComponent.SetupComponent(lblTitle, '{"TextSize":17,"TextBold":"yes","TextHorizontalAlign":"center","TextVerticalAlign":"center","BackgroundColor":"#6366F1","TextColor":"#FFFFFF"}');
 
   edtBaslik = TalepForm.AddNewProEdit(TalepForm, 'edtBaslik', 'Baslik');
-  edtBaslik.Align = alMostTop;
-  edtBaslik.Height = 42;
-  edtBaslik.Margins.Left = 24;
-  edtBaslik.Margins.Right = 24;
-  edtBaslik.Margins.Top = 10;
+  edtBaslik.Align = alMostTop; edtBaslik.Height = 42;
+  edtBaslik.Margins.Left = 24; edtBaslik.Margins.Right = 24; edtBaslik.Margins.Top = 10;
 
   edtAciklama = TalepForm.AddNewProEdit(TalepForm, 'edtAciklama', 'Aciklama');
-  edtAciklama.Align = alMostTop;
-  edtAciklama.Height = 42;
-  edtAciklama.Margins.Left = 24;
-  edtAciklama.Margins.Right = 24;
-  edtAciklama.Margins.Top = 8;
+  edtAciklama.Align = alMostTop; edtAciklama.Height = 42;
+  edtAciklama.Margins.Left = 24; edtAciklama.Margins.Right = 24; edtAciklama.Margins.Top = 8;
 
   edtLokasyonId = TalepForm.AddNewProEdit(TalepForm, 'edtLokasyonId', 'LokasyonId (ornek: 1)');
-  edtLokasyonId.Align = alMostTop;
-  edtLokasyonId.Height = 42;
-  edtLokasyonId.Margins.Left = 24;
-  edtLokasyonId.Margins.Right = 24;
-  edtLokasyonId.Margins.Top = 8;
+  edtLokasyonId.Align = alMostTop; edtLokasyonId.Height = 42;
+  edtLokasyonId.Margins.Left = 24; edtLokasyonId.Margins.Right = 24; edtLokasyonId.Margins.Top = 8;
 
   edtKategoriId = TalepForm.AddNewProEdit(TalepForm, 'edtKategoriId', 'KategoriId (ornek: 3)');
-  edtKategoriId.Align = alMostTop;
-  edtKategoriId.Height = 42;
-  edtKategoriId.Margins.Left = 24;
-  edtKategoriId.Margins.Right = 24;
-  edtKategoriId.Margins.Top = 8;
+  edtKategoriId.Align = alMostTop; edtKategoriId.Height = 42;
+  edtKategoriId.Margins.Left = 24; edtKategoriId.Margins.Right = 24; edtKategoriId.Margins.Top = 8;
 
   edtOncelik = TalepForm.AddNewProEdit(TalepForm, 'edtOncelik', 'Oncelik (Dusuk/Orta/Yuksek/Kritik)');
-  edtOncelik.Align = alMostTop;
-  edtOncelik.Height = 42;
-  edtOncelik.Margins.Left = 24;
-  edtOncelik.Margins.Right = 24;
-  edtOncelik.Margins.Top = 8;
+  edtOncelik.Align = alMostTop; edtOncelik.Height = 42;
+  edtOncelik.Margins.Left = 24; edtOncelik.Margins.Right = 24; edtOncelik.Margins.Top = 8;
 
   btnKaydet = TalepForm.AddNewProButton(TalepForm, 'btnKaydet', 'Kaydet');
-  btnKaydet.Align = alMostTop;
-  btnKaydet.Height = 44;
-  btnKaydet.Margins.Left = 24;
-  btnKaydet.Margins.Right = 24;
-  btnKaydet.Margins.Top = 14;
+  btnKaydet.Align = alMostTop; btnKaydet.Height = 44;
+  btnKaydet.Margins.Left = 24; btnKaydet.Margins.Right = 24; btnKaydet.Margins.Top = 14;
+  clComponent.SetupComponent(btnKaydet, '{"BackgroundColor":"#16A34A","TextColor":"#FFFFFF","TextSize":14,"TextBold":"yes","RoundHeight":10,"RoundWidth":10,"BorderWidth":0}');
   btnKaydet.OnClick = 'OnKaydet';
 
   btnTemizle = TalepForm.AddNewProButton(TalepForm, 'btnTemizle', 'Temizle');
-  btnTemizle.Align = alMostTop;
-  btnTemizle.Height = 42;
-  btnTemizle.Margins.Left = 24;
-  btnTemizle.Margins.Right = 24;
-  btnTemizle.Margins.Top = 8;
+  btnTemizle.Align = alMostTop; btnTemizle.Height = 40;
+  btnTemizle.Margins.Left = 24; btnTemizle.Margins.Right = 24; btnTemizle.Margins.Top = 8;
+  clComponent.SetupComponent(btnTemizle, '{"BackgroundColor":"#6B7280","TextColor":"#FFFFFF","TextSize":12,"RoundHeight":10,"RoundWidth":10,"BorderWidth":0}');
   btnTemizle.OnClick = 'OnTemizle';
+
+  btnGeri = TalepForm.AddNewProButton(TalepForm, 'btnGeri', 'Geri');
+  btnGeri.Align = alMostTop; btnGeri.Height = 40;
+  btnGeri.Margins.Left = 24; btnGeri.Margins.Right = 24; btnGeri.Margins.Top = 8;
+  clComponent.SetupComponent(btnGeri, '{"BackgroundColor":"null","TextColor":"#6366F1","TextSize":12,"BorderWidth":1,"BorderColor":"#6366F1","RoundHeight":10,"RoundWidth":10}');
+  btnGeri.OnClick = 'OnGeri';
 }
 
-procedure InitStorage;
-{
-  ArrTalepNo = TclArrayString.Create;
-  ArrBaslik = TclArrayString.Create;
-  ArrAciklama = TclArrayString.Create;
-  ArrLokasyonId = TclArrayInteger.Create;
-  ArrKategoriId = TclArrayInteger.Create;
-  ArrOncelik = TclArrayString.Create;
-  ArrDurum = TclArrayString.Create;
-  ArrAcanKullaniciId = TclArrayInteger.Create;
-  ArrAtananPersonelId = TclArrayInteger.Create;
-  ArrAcilisTarihi = TclArrayString.Create;
-  ArrHedefKapanis = TclArrayString.Create;
-  ArrKapanisTarihi = TclArrayString.Create;
-  ArrSonNot = TclArrayString.Create;
-
-  ArrDG_TalepNo = TclArrayString.Create;
-  ArrDG_Durum = TclArrayString.Create;
-  ArrDG_Not = TclArrayString.Create;
-  ArrDG_IslemYapanId = TclArrayInteger.Create;
-  ArrDG_Tarih = TclArrayString.Create;
-}
+// ─── ANA PROGRAM ─────────────────────────────────────────
 
 {
-  AktifKullaniciId = 1001;
-  AktifRol = 'TalepAcan';
-
-  NextTalepId = 1;
-  InitStorage;
-
   TalepForm = TclStyleForm.Create(Self);
   TalepForm.clSetStyle(TalepForm.LightSB);
-  TalepForm.clCaption = 'Akilli Ariza - Talep Acma';
+  TalepForm.clCaption = 'Talep Acma';
 
   BuildTalepAcmaUI;
 

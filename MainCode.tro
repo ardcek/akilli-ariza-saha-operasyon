@@ -1,0 +1,289 @@
+/*
+  Akilli Ariza ve Saha Operasyon Platformu
+  Ana Giris Noktasi — MainCode.tro
+  Dil: Clomosy TRObject
+
+  Bu dosya:
+    - Tum paylasilan veri dizilerini tanimlar
+    - Demo verileri yukler
+    - Ortak yardimci prosedurleri icerir
+    - Giris modulunu TclUnit olarak baslatir
+
+  Modul dosyalari TclUnit kapsam paylasimiyla
+  buradaki degiskenlere dogrudan erisir.
+
+  Not: Clomosy calisma ortaminda tum .tro dosyalari
+  ayni proje klasorunde bulunmalidir.
+*/
+
+var
+  // ═══════════════ OTURUM ═══════════════
+  AktifKullaniciId   : Integer;
+  AktifKullaniciAd   : String;
+  AktifRol           : String;
+
+  // ═══════════════ KULLANICILAR ═══════════════
+  ArrKulId           : TclArrayInteger;
+  ArrKulAdi          : TclArrayString;
+  ArrKulSifre        : TclArrayString;
+  ArrKulRol          : TclArrayString;
+  ArrKulAdSoyad      : TclArrayString;
+
+  // ═══════════════ TALEPLER ═══════════════
+  ArrTalepNo         : TclArrayString;
+  ArrBaslik          : TclArrayString;
+  ArrAciklama        : TclArrayString;
+  ArrLokasyonId      : TclArrayInteger;
+  ArrKategoriId      : TclArrayInteger;
+  ArrOncelik         : TclArrayString;
+  ArrDurum           : TclArrayString;
+  ArrAcanKullaniciId : TclArrayInteger;
+  ArrAtananPersonelId: TclArrayInteger;
+  ArrAcilisTarihi    : TclArrayString;
+  ArrHedefKapanis    : TclArrayString;
+  ArrKapanisTarihi   : TclArrayString;
+  ArrSonNot          : TclArrayString;
+  ArrQRDogrulandi    : TclArrayInteger;
+  TalepSayisi        : Integer;
+  NextTalepId        : Integer;
+
+  // ═══════════════ PERSONEL ═══════════════
+  ArrPerId           : TclArrayInteger;
+  ArrPerAd           : TclArrayString;
+  ArrPerAktifIs      : TclArrayInteger;
+  PersonelSayisi     : Integer;
+
+  // ═══════════════ DURUM GEÇMİŞİ ═══════════════
+  ArrDG_TalepNo      : TclArrayString;
+  ArrDG_Durum        : TclArrayString;
+  ArrDG_Not          : TclArrayString;
+  ArrDG_IslemYapanId : TclArrayInteger;
+  ArrDG_Tarih        : TclArrayString;
+
+  // ═══════════════ QR LOG ═══════════════
+  ArrQRLog_TalepNo   : TclArrayString;
+  ArrQRLog_QRIcerik  : TclArrayString;
+  ArrQRLog_Durum     : TclArrayString;
+  ArrQRLog_Tarih     : TclArrayString;
+  QRLogSayisi        : Integer;
+
+  // ═══════════════ NAVİGASYON ═══════════════
+  SeciliTalepIndex   : Integer;
+
+  // ═══════════════ ROUTER ═══════════════
+  RouterForm         : TclStyleForm;
+  UnitGiris          : TclUnit;
+
+// ─── ORTAK YARDIMCILAR ───────────────────────────────────
+
+procedure AddDurumLog(TalepNo, Durum, NotMt: String; YapanId: Integer);
+{
+  ArrDG_TalepNo.Add(TalepNo);
+  ArrDG_Durum.Add(Durum);
+  ArrDG_Not.Add(NotMt);
+  ArrDG_IslemYapanId.Add(YapanId);
+  ArrDG_Tarih.Add(FormatDateTime('dd.mm.yyyy hh:nn:ss', Now));
+}
+
+function IsSLABreached(HedefStr: String): Boolean;
+var
+  HedefISO, NowISO : String;
+{
+  Result = False;
+  if (Trim(HedefStr) == '') then Exit;
+  if (Length(HedefStr) >= 16)
+  {
+    HedefISO = Copy(HedefStr, 7, 4) + Copy(HedefStr, 4, 2) + Copy(HedefStr, 1, 2) +
+               Copy(HedefStr, 12, 2) + Copy(HedefStr, 15, 2);
+    NowISO = FormatDateTime('yyyymmddhhnn', Now);
+    if (HedefISO < NowISO)
+      Result = True;
+  }
+}
+
+function OncelikRenk(Oncelik: String): String;
+{
+  if (Oncelik == 'Kritik')
+    Result = '#DC2626'
+  else if (Oncelik == 'Yuksek')
+    Result = '#D97706'
+  else if (Oncelik == 'Orta')
+    Result = '#6366F1'
+  else
+    Result = '#6B7280';
+}
+
+function CalculateSLAHedefKapanis(OncelikText: String): String;
+var
+  HedefSaat : Integer;
+{
+  if (OncelikText == 'Kritik')
+    HedefSaat = 8
+  else if (OncelikText == 'Yuksek')
+    HedefSaat = 24
+  else if (OncelikText == 'Orta')
+    HedefSaat = 48
+  else
+    HedefSaat = 72;
+  Result = FormatDateTime('dd.mm.yyyy hh:nn', Now + (HedefSaat / 24));
+}
+
+function GetPersonelAdById(PerId: Integer): String;
+var
+  i : Integer;
+{
+  Result = '';
+  for (i = 0 to PersonelSayisi - 1)
+  {
+    if (ArrPerId.GetItem(i) == PerId)
+    {
+      Result = ArrPerAd.GetItem(i);
+      Exit;
+    }
+  }
+}
+
+// ─── VERİ BAŞLATMA ───────────────────────────────────────
+
+procedure InitAllArrays;
+{
+  ArrKulId           = TclArrayInteger.Create;
+  ArrKulAdi          = TclArrayString.Create;
+  ArrKulSifre        = TclArrayString.Create;
+  ArrKulRol          = TclArrayString.Create;
+  ArrKulAdSoyad      = TclArrayString.Create;
+
+  ArrTalepNo         = TclArrayString.Create;
+  ArrBaslik          = TclArrayString.Create;
+  ArrAciklama        = TclArrayString.Create;
+  ArrLokasyonId      = TclArrayInteger.Create;
+  ArrKategoriId      = TclArrayInteger.Create;
+  ArrOncelik         = TclArrayString.Create;
+  ArrDurum           = TclArrayString.Create;
+  ArrAcanKullaniciId = TclArrayInteger.Create;
+  ArrAtananPersonelId= TclArrayInteger.Create;
+  ArrAcilisTarihi    = TclArrayString.Create;
+  ArrHedefKapanis    = TclArrayString.Create;
+  ArrKapanisTarihi   = TclArrayString.Create;
+  ArrSonNot          = TclArrayString.Create;
+  ArrQRDogrulandi    = TclArrayInteger.Create;
+
+  ArrPerId           = TclArrayInteger.Create;
+  ArrPerAd           = TclArrayString.Create;
+  ArrPerAktifIs      = TclArrayInteger.Create;
+
+  ArrDG_TalepNo      = TclArrayString.Create;
+  ArrDG_Durum        = TclArrayString.Create;
+  ArrDG_Not          = TclArrayString.Create;
+  ArrDG_IslemYapanId = TclArrayInteger.Create;
+  ArrDG_Tarih        = TclArrayString.Create;
+
+  ArrQRLog_TalepNo   = TclArrayString.Create;
+  ArrQRLog_QRIcerik  = TclArrayString.Create;
+  ArrQRLog_Durum     = TclArrayString.Create;
+  ArrQRLog_Tarih     = TclArrayString.Create;
+}
+
+procedure LoadDemoData;
+{
+  // ── Kullanicilar ──
+  ArrKulId.Add(1001); ArrKulAdi.Add('talep1'); ArrKulSifre.Add('1234');
+  ArrKulRol.Add('TalepAcan'); ArrKulAdSoyad.Add('Ahmet Yilmaz');
+
+  ArrKulId.Add(2001); ArrKulAdi.Add('saha1'); ArrKulSifre.Add('1234');
+  ArrKulRol.Add('SahaPersoneli'); ArrKulAdSoyad.Add('Mehmet Kaya');
+
+  ArrKulId.Add(3001); ArrKulAdi.Add('yonetici1'); ArrKulSifre.Add('1234');
+  ArrKulRol.Add('Yonetici'); ArrKulAdSoyad.Add('Ayse Demir');
+
+  // ── Personeller ──
+  ArrPerId.Add(2001); ArrPerAd.Add('Mehmet Kaya'); ArrPerAktifIs.Add(2);
+  ArrPerId.Add(2002); ArrPerAd.Add('Ali Celik'); ArrPerAktifIs.Add(1);
+  ArrPerId.Add(2003); ArrPerAd.Add('Fatma Sahin'); ArrPerAktifIs.Add(0);
+  PersonelSayisi = 3;
+
+  // ── Talep 1: Yeni, atanmamis ──
+  ArrTalepNo.Add('TLP-20260417-1'); ArrBaslik.Add('Asansor arizasi B blok');
+  ArrAciklama.Add('B blok asansor 3. katta durdu');
+  ArrLokasyonId.Add(1); ArrKategoriId.Add(3);
+  ArrOncelik.Add('Kritik'); ArrDurum.Add('Yeni');
+  ArrAcanKullaniciId.Add(1001); ArrAtananPersonelId.Add(0);
+  ArrAcilisTarihi.Add('17.04.2026 09:00'); ArrHedefKapanis.Add('17.04.2026 17:00');
+  ArrKapanisTarihi.Add(''); ArrSonNot.Add(''); ArrQRDogrulandi.Add(0);
+
+  // ── Talep 2: Atandi, Mehmet Kaya, QR yok ──
+  ArrTalepNo.Add('TLP-20260417-2'); ArrBaslik.Add('Su kacagi 3. kat koridor');
+  ArrAciklama.Add('Koridorda su birikintisi');
+  ArrLokasyonId.Add(1); ArrKategoriId.Add(1);
+  ArrOncelik.Add('Yuksek'); ArrDurum.Add('Atandi');
+  ArrAcanKullaniciId.Add(1001); ArrAtananPersonelId.Add(2001);
+  ArrAcilisTarihi.Add('17.04.2026 10:30'); ArrHedefKapanis.Add('18.04.2026 10:30');
+  ArrKapanisTarihi.Add(''); ArrSonNot.Add(''); ArrQRDogrulandi.Add(0);
+
+  // ── Talep 3: Atandi, Mehmet Kaya, QR tamam ──
+  ArrTalepNo.Add('TLP-20260417-3'); ArrBaslik.Add('Klima bakimi ofis kati');
+  ArrAciklama.Add('Ofis katinda klima sogutmuyor');
+  ArrLokasyonId.Add(2); ArrKategoriId.Add(2);
+  ArrOncelik.Add('Orta'); ArrDurum.Add('Atandi');
+  ArrAcanKullaniciId.Add(1001); ArrAtananPersonelId.Add(2001);
+  ArrAcilisTarihi.Add('17.04.2026 11:00'); ArrHedefKapanis.Add('19.04.2026 11:00');
+  ArrKapanisTarihi.Add(''); ArrSonNot.Add(''); ArrQRDogrulandi.Add(1);
+
+  // ── Talep 4: Tamamlandi ──
+  ArrTalepNo.Add('TLP-20260416-1'); ArrBaslik.Add('Ampul degisimi lobi');
+  ArrAciklama.Add('Lobi giris lambasi yanmis');
+  ArrLokasyonId.Add(1); ArrKategoriId.Add(4);
+  ArrOncelik.Add('Dusuk'); ArrDurum.Add('Tamamlandi');
+  ArrAcanKullaniciId.Add(1001); ArrAtananPersonelId.Add(2002);
+  ArrAcilisTarihi.Add('16.04.2026 08:00'); ArrHedefKapanis.Add('19.04.2026 08:00');
+  ArrKapanisTarihi.Add('16.04.2026 15:00'); ArrSonNot.Add('Degisti, sorun giderildi');
+  ArrQRDogrulandi.Add(1);
+
+  // ── Talep 5: Iptal ──
+  ArrTalepNo.Add('TLP-20260416-2'); ArrBaslik.Add('Elektrik panosu kontrolu');
+  ArrAciklama.Add('Pano kontrol talebi');
+  ArrLokasyonId.Add(3); ArrKategoriId.Add(3);
+  ArrOncelik.Add('Kritik'); ArrDurum.Add('Iptal');
+  ArrAcanKullaniciId.Add(3001); ArrAtananPersonelId.Add(0);
+  ArrAcilisTarihi.Add('16.04.2026 06:00'); ArrHedefKapanis.Add('16.04.2026 14:00');
+  ArrKapanisTarihi.Add('16.04.2026 07:00'); ArrSonNot.Add('Iptal - yanlis bildirim');
+  ArrQRDogrulandi.Add(0);
+
+  TalepSayisi = 5;
+  NextTalepId = 6;
+
+  // ── Durum gecmisi ──
+  AddDurumLog('TLP-20260417-1', 'Yeni', 'Talep olusturuldu.', 1001);
+  AddDurumLog('TLP-20260417-2', 'Yeni', 'Talep olusturuldu.', 1001);
+  AddDurumLog('TLP-20260417-2', 'Atandi', 'Mehmet Kaya personeline atandi.', 3001);
+  AddDurumLog('TLP-20260417-3', 'Yeni', 'Talep olusturuldu.', 1001);
+  AddDurumLog('TLP-20260417-3', 'Atandi', 'Mehmet Kaya personeline atandi.', 3001);
+  AddDurumLog('TLP-20260416-1', 'Yeni', 'Talep olusturuldu.', 1001);
+  AddDurumLog('TLP-20260416-1', 'Atandi', 'Ali Celik personeline atandi.', 3001);
+  AddDurumLog('TLP-20260416-1', 'Tamamlandi', 'Degisti, sorun giderildi.', 2002);
+
+  QRLogSayisi = 0;
+  SeciliTalepIndex = -1;
+}
+
+// ─── ANA PROGRAM ─────────────────────────────────────────
+
+{
+  InitAllArrays;
+  LoadDemoData;
+
+  AktifKullaniciId = 0;
+  AktifKullaniciAd = '';
+  AktifRol = '';
+
+  RouterForm = TclStyleForm.Create(Self);
+  RouterForm.clSetStyle(RouterForm.LightSB);
+  RouterForm.clCaption = 'Akilli Ariza Platformu';
+
+  UnitGiris = TclUnit.Create;
+  UnitGiris.UnitName = 'giris_module';
+  UnitGiris.CallerForm = RouterForm;
+  UnitGiris.Run;
+
+  RouterForm.Run;
+}

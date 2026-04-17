@@ -1,282 +1,172 @@
 /*
-  Akilli Ariza ve Saha Operasyon Platformu
-  Modul: Rapor ve Disa Aktarim
-  Dil: Clomosy TRObject
-
-  Bu modul:
-    - Tarih araligina gore talep listesi filtreler
-    - Durum + Oncelik dagılımı ozetler
-    - Metin raporu olusturur
-    - Raporu panoya kopyalar (Clomosy.SetClipBoard)
+  Modul: Rapor Olusturma
+  Unit olarak is_emri_havuzu_module tarafindan cagirilir.
+  Tum veri dizileri ve GetPersonelAdById MainCode kapsamından gelir.
 */
 
 var
-  RaporForm      : TclStyleForm;
+  RaporForm        : TclStyleForm;
+  pnlHeader        : TclProPanel;
+  lblTitle         : TclProLabel;
+  pnlFiltre        : TclProPanel;
+  edtBasTar        : TClProEdit;
+  edtBitTar        : TClProEdit;
+  btnOlustur       : TClProButton;
+  lblSonuc         : TclProLabel;
+  scrRapor         : TclVertScrollBox;
 
-  pnlHeader      : TclProPanel;
-  lblTitle       : TclProLabel;
+// ─── RAPOR OLUŞTURMA ─────────────────────────────────────
 
-  pnlFiltre      : TclProPanel;
-  lblFiltreT     : TclProLabel;
-  lblBasT        : TclProLabel;
-  edtBasTarih    : TClProEdit;
-  lblBitT        : TclProLabel;
-  edtBitTarih    : TClProEdit;
-  btnRaporOlustur: TClProButton;
-
-  scrRapor       : TclVertScrollBox;
-  btnKopyala     : TClProButton;
-  lblSonuc       : TclProLabel;
-
-  // Son olusturulan rapor metni
-  SonRaporTxt : String;
-
-  // Veri
-  ArrTalepNo     : TclArrayString;
-  ArrBaslik      : TclArrayString;
-  ArrDurum       : TclArrayString;
-  ArrOncelik     : TclArrayString;
-  ArrPersonel    : TclArrayString;
-  ArrKayitTar    : TclArrayString;
-  ArrKapanisTar  : TclArrayString;
-  TalepSayisi    : Integer;
-
-// ─── DEMO VERİ ───────────────────────────────────────────
-
-procedure LoadDemoData;
-{
-  ArrTalepNo.Add('TLP-20260417-1'); ArrBaslik.Add('Asansor arizasi B blok');
-  ArrDurum.Add('Atandi'); ArrOncelik.Add('Kritik');
-  ArrPersonel.Add('Mehmet Kaya'); ArrKayitTar.Add('17.04.2026 08:00');
-  ArrKapanisTar.Add('');
-
-  ArrTalepNo.Add('TLP-20260417-2'); ArrBaslik.Add('Su kaçagi zemin kat');
-  ArrDurum.Add('Tamamlandi'); ArrOncelik.Add('Yuksek');
-  ArrPersonel.Add('Ali Celik'); ArrKayitTar.Add('17.04.2026 09:00');
-  ArrKapanisTar.Add('17.04.2026 14:30');
-
-  ArrTalepNo.Add('TLP-20260417-3'); ArrBaslik.Add('Klima bakimi ofis kati');
-  ArrDurum.Add('Islemde'); ArrOncelik.Add('Orta');
-  ArrPersonel.Add('Mehmet Kaya'); ArrKayitTar.Add('17.04.2026 10:00');
-  ArrKapanisTar.Add('');
-
-  ArrTalepNo.Add('TLP-20260417-4'); ArrBaslik.Add('Güvenlik kamerası arızası');
-  ArrDurum.Add('Beklemede'); ArrOncelik.Add('Dusuk');
-  ArrPersonel.Add('Fatma Sahin'); ArrKayitTar.Add('17.04.2026 11:00');
-  ArrKapanisTar.Add('');
-
-  ArrTalepNo.Add('TLP-20260415-1'); ArrBaslik.Add('Elektrik sigortasi arizasi');
-  ArrDurum.Add('Tamamlandi'); ArrOncelik.Add('Kritik');
-  ArrPersonel.Add('Ali Celik'); ArrKayitTar.Add('15.04.2026 07:30');
-  ArrKapanisTar.Add('15.04.2026 10:00');
-
-  TalepSayisi = 5;
-}
-
-// ─── RAPOR RENDER ────────────────────────────────────────
-
-procedure RenderRapor(Raporlar: TclArrayString; Ozet: String);
+void OnRaporOlustur;
 var
-  i      : Integer;
-  row    : TclProPanel;
-  lblR   : TclProLabel;
-  pnlOz  : TclProPanel;
+  BasTar, BitTar : String;
+  BasISO, BitISO : String;
+  KayitISO       : String;
+  KayitTar       : String;
+  i, rSayisi     : Integer;
+  row            : TclProPanel;
+  lblNo          : TclProLabel;
+  lblBas         : TclProLabel;
+  lblDur         : TclProLabel;
+  lblOnc         : TclProLabel;
+  lblPer         : TclProLabel;
+  lblTar         : TclProLabel;
+  PerAd          : String;
 {
+  BasTar = Trim(edtBasTar.Text);
+  BitTar = Trim(edtBitTar.Text);
+
+  if ((BasTar == '') || (BitTar == ''))
+  {
+    lblSonuc.Text = 'Hata: Baslangic ve bitis tarihlerini girin (dd.mm.yyyy).';
+    Exit;
+  }
+
+  if (Length(BasTar) < 10) or (Length(BitTar) < 10)
+  {
+    lblSonuc.Text = 'Hata: Tarih formati dd.mm.yyyy olmali.';
+    Exit;
+  }
+
+  // ISO'ya cevir: dd.mm.yyyy -> yyyymmdd
+  BasISO = Copy(BasTar, 7, 4) + Copy(BasTar, 4, 2) + Copy(BasTar, 1, 2);
+  BitISO = Copy(BitTar, 7, 4) + Copy(BitTar, 4, 2) + Copy(BitTar, 1, 2);
+
   try
     scrRapor.Free;
   except
   }
 
-  scrRapor = RaporForm.AddNewVertScrollBox(RaporForm, 'scrR');
+  scrRapor = RaporForm.AddNewVertScrollBox(RaporForm, 'scrRap');
   scrRapor.Align = alClient;
 
-  // Ozet kutusu
-  pnlOz = RaporForm.AddNewProPanel(scrRapor, 'pnlOz');
-  clComponent.SetupComponent(pnlOz, '{"Align":"Top","Height":70,"BackgroundColor":"#F0FDF4","RoundHeight":8,"RoundWidth":8,"BorderWidth":1,"BorderColor":"#BBF7D0","MarginLeft":10,"MarginRight":10,"MarginTop":8}');
+  rSayisi = 0;
 
-  lblR = RaporForm.AddNewProLabel(pnlOz, 'loz', 'Ozet');
-  clComponent.SetupComponent(lblR, '{"Align":"Top","Height":22,"MarginLeft":12,"MarginTop":6,"TextSize":12,"TextBold":"yes","TextColor":"#16A34A","TextHorizontalAlign":"leading","BackgroundColor":"null"}');
+  // Baslik satiri
+  row = RaporForm.AddNewProPanel(scrRapor, 'hdr');
+  clComponent.SetupComponent(row, '{"Align":"Top","Height":30,"BackgroundColor":"#6366F1","RoundHeight":0,"RoundWidth":0,"BorderWidth":0,"MarginLeft":8,"MarginRight":8,"MarginTop":8}');
 
-  lblR = RaporForm.AddNewProLabel(pnlOz, 'lozd', Ozet);
-  clComponent.SetupComponent(lblR, '{"Align":"Top","Height":30,"MarginLeft":12,"TextSize":11,"TextColor":"#374151","TextHorizontalAlign":"leading","BackgroundColor":"null"}');
+  lblNo = RaporForm.AddNewProLabel(row, 'hno', 'Talep No');
+  clComponent.SetupComponent(lblNo, '{"Align":"Left","Width":100,"MarginLeft":6,"TextSize":10,"TextBold":"yes","TextColor":"#FFFFFF","TextVerticalAlign":"center","BackgroundColor":"null"}');
 
-  // Satirlar
-  for (i = 0 to Raporlar.Count - 1)
-  {
-    row = RaporForm.AddNewProPanel(scrRapor, 'rrow' + IntToStr(i));
-    clComponent.SetupComponent(row, '{"Align":"Top","Height":48,"BackgroundColor":"#FFFFFF","RoundHeight":6,"RoundWidth":6,"BorderWidth":1,"BorderColor":"#E5E7EB","MarginLeft":10,"MarginRight":10,"MarginTop":4}');
+  lblDur = RaporForm.AddNewProLabel(row, 'hdur', 'Durum');
+  clComponent.SetupComponent(lblDur, '{"Align":"Left","Width":70,"TextSize":10,"TextBold":"yes","TextColor":"#FFFFFF","TextVerticalAlign":"center","BackgroundColor":"null"}');
 
-    lblR = RaporForm.AddNewProLabel(row, 'lrr' + IntToStr(i), Raporlar.GetItem(i));
-    clComponent.SetupComponent(lblR, '{"Align":"Client","MarginLeft":12,"MarginTop":4,"TextSize":11,"TextColor":"#111827","TextHorizontalAlign":"leading","TextVerticalAlign":"center","BackgroundColor":"null"}');
-  }
+  lblOnc = RaporForm.AddNewProLabel(row, 'honc', 'Oncelik');
+  clComponent.SetupComponent(lblOnc, '{"Align":"Left","Width":56,"TextSize":10,"TextBold":"yes","TextColor":"#FFFFFF","TextVerticalAlign":"center","BackgroundColor":"null"}');
 
-  if (Raporlar.Count == 0)
-  {
-    lblR = RaporForm.AddNewProLabel(scrRapor, 'lempty', 'Secilen tarih araliginda kayit bulunamadi.');
-    clComponent.SetupComponent(lblR, '{"Align":"Top","Height":40,"TextSize":13,"TextColor":"#9CA3AF","TextHorizontalAlign":"center","BackgroundColor":"null","MarginTop":20}');
-  }
-
-  btnKopyala.Visible = True;
-}
-
-// ─── OLAY: RAPOR OLUSTUR ─────────────────────────────────
-
-void OnRaporOlustur;
-var
-  BasTar  : String;
-  BitTar  : String;
-  i       : Integer;
-  cTop    : Integer;
-  cTam    : Integer;
-  cAcik   : Integer;
-  Satirlar: TclArrayString;
-  Ozet    : String;
-  TxtBuf  : String;
-{
-  BasTar = Trim(edtBasTarih.Text);
-  BitTar = Trim(edtBitTarih.Text);
-
-  if (BasTar == '')
-  {
-    lblSonuc.Text = 'Hata: Baslangic tarihi giriniz (gg.aa.yyyy).';
-    Exit;
-  }
-  if (BitTar == '')
-  {
-    lblSonuc.Text = 'Hata: Bitis tarihi giriniz (gg.aa.yyyy).';
-    Exit;
-  }
-
-  Satirlar = TclArrayString.Create;
-  cTop = 0; cTam = 0; cAcik = 0;
+  lblPer = RaporForm.AddNewProLabel(row, 'hper', 'Personel');
+  clComponent.SetupComponent(lblPer, '{"Align":"Client","TextSize":10,"TextBold":"yes","TextColor":"#FFFFFF","TextVerticalAlign":"center","BackgroundColor":"null"}');
 
   for (i = 0 to TalepSayisi - 1)
   {
-    // MVP: tarih kontrolu oturum icin basitlestirilmistir
-    // Gercekte StrToDateTime + karsilastirma yapilir
-    // Burada tüm kayitlar dahil edilir (demo)
+    KayitTar = ArrAcilisTarihi.GetItem(i);
+    if (Length(KayitTar) < 10) then Continue;
 
-    cTop = cTop + 1;
-    if (ArrDurum.GetItem(i) == 'Tamamlandi') then cTam = cTam + 1;
-    if (ArrDurum.GetItem(i) == 'Atandi') or (ArrDurum.GetItem(i) == 'Yolda') or (ArrDurum.GetItem(i) == 'Islemde') or (ArrDurum.GetItem(i) == 'Beklemede')
-      cAcik = cAcik + 1;
+    // Kayit tarihini ISO'ya cevir (sadece tarih kismi)
+    KayitISO = Copy(KayitTar, 7, 4) + Copy(KayitTar, 4, 2) + Copy(KayitTar, 1, 2);
 
-    Satirlar.Add(ArrTalepNo.GetItem(i) + '  |  ' + ArrOncelik.GetItem(i) + '  |  ' + ArrDurum.GetItem(i) + '  |  ' + ArrPersonel.GetItem(i) + '  |  ' + ArrKayitTar.GetItem(i));
+    if ((KayitISO >= BasISO) && (KayitISO <= BitISO))
+    {
+      rSayisi = rSayisi + 1;
+
+      if (ArrAtananPersonelId.GetItem(i) > 0)
+        PerAd = GetPersonelAdById(ArrAtananPersonelId.GetItem(i))
+      else
+        PerAd = '-';
+
+      row = RaporForm.AddNewProPanel(scrRapor, 'rrow' + IntToStr(i));
+      clComponent.SetupComponent(row, '{"Align":"Top","Height":40,"BackgroundColor":"#FFFFFF","RoundHeight":0,"RoundWidth":0,"BorderWidth":1,"BorderColor":"#E5E7EB","MarginLeft":8,"MarginRight":8}');
+
+      lblNo = RaporForm.AddNewProLabel(row, 'rno' + IntToStr(i), ArrTalepNo.GetItem(i));
+      clComponent.SetupComponent(lblNo, '{"Align":"Left","Width":100,"MarginLeft":6,"TextSize":9,"TextColor":"#374151","TextVerticalAlign":"center","BackgroundColor":"null"}');
+
+      lblDur = RaporForm.AddNewProLabel(row, 'rdur' + IntToStr(i), ArrDurum.GetItem(i));
+      clComponent.SetupComponent(lblDur, '{"Align":"Left","Width":70,"TextSize":10,"TextColor":"#374151","TextVerticalAlign":"center","BackgroundColor":"null"}');
+
+      lblOnc = RaporForm.AddNewProLabel(row, 'ronc' + IntToStr(i), ArrOncelik.GetItem(i));
+      clComponent.SetupComponent(lblOnc, '{"Align":"Left","Width":56,"TextSize":10,"TextColor":"'+OncelikRenk(ArrOncelik.GetItem(i))+'","TextVerticalAlign":"center","BackgroundColor":"null"}');
+
+      lblPer = RaporForm.AddNewProLabel(row, 'rper' + IntToStr(i), PerAd);
+      clComponent.SetupComponent(lblPer, '{"Align":"Client","TextSize":10,"TextColor":"#374151","TextVerticalAlign":"center","BackgroundColor":"null"}');
+    }
   }
 
-  Ozet = 'Toplam: ' + IntToStr(cTop) + '   Tamamlandi: ' + IntToStr(cTam) + '   Acik: ' + IntToStr(cAcik);
-
-  // Pano icin rapor metni hazirla
-  TxtBuf = 'ARIZA RAPORU  ' + BasTar + ' - ' + BitTar + '' + #13#10;
-  TxtBuf = TxtBuf + '==============================================' + #13#10;
-  TxtBuf = TxtBuf + Ozet + #13#10;
-  TxtBuf = TxtBuf + '----------------------------------------------' + #13#10;
-
-  for (i = 0 to Satirlar.Count - 1)
-    TxtBuf = TxtBuf + Satirlar.GetItem(i) + #13#10;
-
-  SonRaporTxt = TxtBuf;
-  lblSonuc.Text = 'Rapor olusturuldu. ' + IntToStr(cTop) + ' kayit.';
-
-  RenderRapor(Satirlar, Ozet);
-
-  try
-    Satirlar.Free;
-  except
-  }
+  lblSonuc.Text = 'Sonuc: ' + IntToStr(rSayisi) + ' kayit bulundu.';
 }
 
-void OnKopyala;
+// ─── OLAYLAR ──────────────────────────────────────────────
+
+void OnGeri;
 {
-  if (SonRaporTxt == '')
-  {
-    lblSonuc.Text = 'Hata: Once rapor olusturun.';
-    Exit;
-  }
-  Clomosy.SetClipBoard(SonRaporTxt);
-  lblSonuc.Text = 'Rapor panoya kopyalandi.';
+  CallerForm.clShow;
+  RaporForm.clHide;
 }
 
 // ─── UI YAPIMI ────────────────────────────────────────────
 
 procedure BuildRaporUI;
+var
+  btnGeri : TClProButton;
 {
-  pnlHeader = RaporForm.AddNewProPanel(RaporForm, 'pnlH');
+  pnlHeader = RaporForm.AddNewProPanel(RaporForm, 'pnlHeader');
   pnlHeader.Align = alMostTop;
   pnlHeader.Height = 50;
-  clComponent.SetupComponent(pnlHeader, '{"BackgroundColor":"#1E293B","BorderWidth":0}');
+  clComponent.SetupComponent(pnlHeader, '{"BackgroundColor":"#D97706","BorderWidth":0,"RoundHeight":0,"RoundWidth":0}');
 
-  lblTitle = RaporForm.AddNewProLabel(pnlHeader, 'lblT', 'Rapor Modulu');
-  clComponent.SetupComponent(lblTitle, '{"Align":"Left","Width":200,"MarginLeft":16,"TextSize":16,"TextBold":"yes","TextColor":"#FFFFFF","TextVerticalAlign":"center","BackgroundColor":"null"}');
+  btnGeri = RaporForm.AddNewProButton(pnlHeader, 'btnRGeri', '<');
+  clComponent.SetupComponent(btnGeri, '{"Align":"Left","Width":40,"BackgroundColor":"null","TextColor":"#FFFFFF","TextSize":18,"TextBold":"yes","BorderWidth":0}');
+  btnGeri.OnClick = 'OnGeri';
 
-  // Filtre paneli
-  pnlFiltre = RaporForm.AddNewProPanel(RaporForm, 'pnlFil');
+  lblTitle = RaporForm.AddNewProLabel(pnlHeader, 'lblTitle', 'Rapor Olustur');
+  clComponent.SetupComponent(lblTitle, '{"Align":"Client","MarginLeft":4,"TextSize":16,"TextBold":"yes","TextColor":"#FFFFFF","TextVerticalAlign":"center","BackgroundColor":"null"}');
+
+  pnlFiltre = RaporForm.AddNewProPanel(RaporForm, 'pnlFiltre');
   pnlFiltre.Align = alMostTop;
-  pnlFiltre.Height = 130;
-  clComponent.SetupComponent(pnlFiltre, '{"BackgroundColor":"null","BorderWidth":0}');
+  pnlFiltre.Height = 90;
+  clComponent.SetupComponent(pnlFiltre, '{"BackgroundColor":"#FEF3C7","BorderWidth":0}');
 
-  lblFiltreT = RaporForm.AddNewProLabel(pnlFiltre, 'lft', 'Tarih Araligi Filtresi');
-  clComponent.SetupComponent(lblFiltreT, '{"Align":"Top","Height":22,"MarginLeft":14,"MarginTop":10,"TextSize":12,"TextBold":"yes","TextColor":"#374151","TextHorizontalAlign":"leading","BackgroundColor":"null"}');
+  edtBasTar = RaporForm.AddNewProEdit(pnlFiltre, 'edtBas', 'Baslangic (dd.mm.yyyy)');
+  clComponent.SetupComponent(edtBasTar, '{"Align":"Top","Height":34,"MarginLeft":12,"MarginRight":12,"MarginTop":8,"TextSize":12,"RoundHeight":8,"RoundWidth":8,"BorderWidth":0,"BackgroundColor":"#FFFFFF"}');
 
-  lblBasT = RaporForm.AddNewProLabel(pnlFiltre, 'lbt', 'Baslangic (gg.aa.yyyy)');
-  clComponent.SetupComponent(lblBasT, '{"Align":"Top","Height":18,"MarginLeft":14,"TextSize":11,"TextColor":"#6B7280","TextHorizontalAlign":"leading","BackgroundColor":"null"}');
+  edtBitTar = RaporForm.AddNewProEdit(pnlFiltre, 'edtBit', 'Bitis (dd.mm.yyyy)');
+  clComponent.SetupComponent(edtBitTar, '{"Align":"Top","Height":34,"MarginLeft":12,"MarginRight":12,"MarginTop":6,"TextSize":12,"RoundHeight":8,"RoundWidth":8,"BorderWidth":0,"BackgroundColor":"#FFFFFF"}');
 
-  edtBasTarih = RaporForm.AddNewProEdit(pnlFiltre, 'edtBas', '15.04.2026');
-  edtBasTarih.Align = alMostTop;
-  edtBasTarih.Height = 40;
-  edtBasTarih.Margins.Left = 14;
-  edtBasTarih.Margins.Right = 14;
-  edtBasTarih.Margins.Top = 2;
-
-  lblBitT = RaporForm.AddNewProLabel(pnlFiltre, 'lbitt', 'Bitis (gg.aa.yyyy)');
-  clComponent.SetupComponent(lblBitT, '{"Align":"Top","Height":18,"MarginLeft":14,"MarginTop":4,"TextSize":11,"TextColor":"#6B7280","TextHorizontalAlign":"leading","BackgroundColor":"null"}');
-
-  edtBitTarih = RaporForm.AddNewProEdit(pnlFiltre, 'edtBit', '17.04.2026');
-  edtBitTarih.Align = alMostTop;
-  edtBitTarih.Height = 40;
-  edtBitTarih.Margins.Left = 14;
-  edtBitTarih.Margins.Right = 14;
-  edtBitTarih.Margins.Top = 2;
-
-  btnRaporOlustur = RaporForm.AddNewProButton(RaporForm, 'btnRO', 'Rapor Olustur');
-  btnRaporOlustur.Align = alMostTop;
-  btnRaporOlustur.Height = 44;
-  btnRaporOlustur.Margins.Left = 14;
-  btnRaporOlustur.Margins.Right = 14;
-  btnRaporOlustur.Margins.Top = 8;
-  clComponent.SetupComponent(btnRaporOlustur, '{"BackgroundColor":"#6366F1","TextColor":"#FFFFFF","TextSize":14,"TextBold":"yes","RoundHeight":8,"RoundWidth":8,"BorderWidth":0}');
-  btnRaporOlustur.OnClick = 'OnRaporOlustur';
+  btnOlustur = RaporForm.AddNewProButton(RaporForm, 'btnOls', 'Rapor Olustur');
+  btnOlustur.Align = alMostTop;
+  btnOlustur.Height = 40;
+  clComponent.SetupComponent(btnOlustur, '{"MarginLeft":12,"MarginRight":12,"MarginTop":8,"BackgroundColor":"#D97706","TextColor":"#FFFFFF","TextBold":"yes","TextSize":14,"RoundHeight":10,"RoundWidth":10,"BorderWidth":0}');
+  btnOlustur.OnClick = 'OnRaporOlustur';
 
   lblSonuc = RaporForm.AddNewProLabel(RaporForm, 'lblSonuc', '');
   lblSonuc.Align = alMostTop;
-  lblSonuc.Height = 26;
-  lblSonuc.Margins.Left = 14;
-  clComponent.SetupComponent(lblSonuc, '{"TextSize":11,"TextColor":"#374151","TextHorizontalAlign":"leading","BackgroundColor":"null"}');
-
-  btnKopyala = RaporForm.AddNewProButton(RaporForm, 'btnKop', 'Raporu Panoya Kopyala');
-  btnKopyala.Align = alMostTop;
-  btnKopyala.Height = 40;
-  btnKopyala.Margins.Left = 14;
-  btnKopyala.Margins.Right = 14;
-  btnKopyala.Visible = False;
-  clComponent.SetupComponent(btnKopyala, '{"BackgroundColor":"#16A34A","TextColor":"#FFFFFF","TextSize":12,"RoundHeight":8,"RoundWidth":8,"BorderWidth":0}');
-  btnKopyala.OnClick = 'OnKopyala';
+  lblSonuc.Height = 24;
+  clComponent.SetupComponent(lblSonuc, '{"MarginLeft":16,"MarginTop":4,"TextSize":12,"TextColor":"#374151","TextHorizontalAlign":"leading","BackgroundColor":"null"}');
 }
 
 // ─── ANA PROGRAM ─────────────────────────────────────────
 
 {
-  ArrTalepNo    = TclArrayString.Create;
-  ArrBaslik     = TclArrayString.Create;
-  ArrDurum      = TclArrayString.Create;
-  ArrOncelik    = TclArrayString.Create;
-  ArrPersonel   = TclArrayString.Create;
-  ArrKayitTar   = TclArrayString.Create;
-  ArrKapanisTar = TclArrayString.Create;
-
-  SonRaporTxt = '';
-  LoadDemoData;
-
   RaporForm = TclStyleForm.Create(Self);
   RaporForm.clSetStyle(RaporForm.LightSB);
   RaporForm.clCaption = 'Rapor';

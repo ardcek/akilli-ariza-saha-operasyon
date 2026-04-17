@@ -1,249 +1,205 @@
 /*
-  Akilli Ariza ve Saha Operasyon Platformu
-  Modul: QR Saha Dogrulama
-  Dil: Clomosy TRObject
-
-  Bu modul:
-    - Sahada QR kodu okutarak (MVP: InputQuery ile manuel giris) konumu dogrular
-    - Talep numarasi ile QR icerigini eslesen dogrulama yapar
-    - Okunan QR loglanir: ArrQRLog_*
-    - Dogrulama basariliysa ArrQRDogrulandi[i] = 1 islenir
-    - CalismaBaslangici saati not alınır
+  Modul: QR Dogrulama
+  Unit olarak saha_personeli_module tarafindan cagirilir.
+  SeciliTalepIndex ve tum diziler MainCode kapsamından gelir.
 */
 
 var
-  QRForm         : TclStyleForm;
+  QRForm             : TclStyleForm;
+  pnlHeader          : TclProPanel;
+  lblTitle           : TclProLabel;
+  pnlTalepBilgi      : TclProPanel;
+  lblTalepNo         : TclProLabel;
+  lblTalepBaslik     : TclProLabel;
+  lblBeklenenQR      : TclProLabel;
+  pnlTarama          : TclProPanel;
+  edtQRIcerik        : TClProEdit;
+  btnDogrula         : TClProButton;
+  lblSonuc           : TclProLabel;
+  pnlLog             : TclProPanel;
+  lblLogHeader       : TclProLabel;
+  scrLog             : TclVertScrollBox;
 
-  pnlHeader      : TclProPanel;
-  lblTitle       : TclProLabel;
-
-  pnlForm        : TclProPanel;
-  lblTalepHint   : TclProLabel;
-  edtTalepNo     : TClProEdit;
-  lblQRHint      : TclProLabel;
-  edtQR          : TClProEdit;
-
-  btnDogrula     : TClProButton;
-  lblSonuc       : TclProLabel;
-
-  pnlGeçmisi     : TclProPanel;
-  scrLog         : TclVertScrollBox;
-
-  // QR Log kayitlari
-  ArrQRLog_TalepNo   : TclArrayString;
-  ArrQRLog_QRIcerik  : TclArrayString;
-  ArrQRLog_Durum     : TclArrayString;  // 'Basarili' / 'Basarisiz'
-  ArrQRLog_Tarih     : TclArrayString;
-  QRLogSayisi        : Integer;
-
-  // Dogrulanan talepler (gercekte ortak bellek; MVP icin statik)
-  ArrDog_TalepNo     : TclArrayString;
-  ArrDog_Durum       : TclArrayInteger;  // 1 = dogrulandi
-  DogSayisi          : Integer;
-
-// ─── YARDIMCILAR ─────────────────────────────────────────
+// ─── YARDIMCILAR ──────────────────────────────────────────
 
 function GetBeklenenQR(TalepNo: String): String;
 {
-  // MVP: QR icerik kurali = 'ARIZA-' + TalepNo
-  Return 'ARIZA-' + TalepNo;
+  Result = 'ARIZA-' + TalepNo;
 }
 
-procedure LoadDemoTalepler;
+// ─── OLAYLAR ──────────────────────────────────────────────
+
+void OnDogrula;
+var
+  QRGirdi       : String;
+  BeklenenQR    : String;
+  TalepNo       : String;
+  DogrulaBasarili : Boolean;
+  i             : Integer;
+  idx           : Integer;
 {
-  ArrDog_TalepNo.Add('TLP-20260417-1');
-  ArrDog_Durum.Add(0);
+  QRGirdi = Trim(edtQRIcerik.Text);
+  if (QRGirdi == '')
+  {
+    lblSonuc.Text = 'Hata: QR icerigini girin.';
+    Exit;
+  }
 
-  ArrDog_TalepNo.Add('TLP-20260417-3');
-  ArrDog_Durum.Add(0);
+  TalepNo    = ArrTalepNo.GetItem(SeciliTalepIndex);
+  BeklenenQR = GetBeklenenQR(TalepNo);
 
-  DogSayisi = 2;
+  if (QRGirdi == BeklenenQR)
+  {
+    DogrulaBasarili = True;
+    ArrQRDogrulandi.SetItem(SeciliTalepIndex, 1);
+
+    // QR log ekle
+    ArrQRLog_TalepNo.Add(TalepNo);
+    ArrQRLog_QRIcerik.Add(QRGirdi);
+    ArrQRLog_Durum.Add('Basarili');
+    ArrQRLog_Tarih.Add(FormatDateTime('dd.mm.yyyy hh:nn:ss', Now));
+    QRLogSayisi = QRLogSayisi + 1;
+
+    lblSonuc.Text = 'Basarili: QR dogrulandi - ' + TalepNo;
+    lblBeklenenQR.Text = 'Durum: Dogrulandi';
+  }
+  else
+  {
+    DogrulaBasarili = False;
+
+    ArrQRLog_TalepNo.Add(TalepNo);
+    ArrQRLog_QRIcerik.Add(QRGirdi);
+    ArrQRLog_Durum.Add('Basarisiz');
+    ArrQRLog_Tarih.Add(FormatDateTime('dd.mm.yyyy hh:nn:ss', Now));
+    QRLogSayisi = QRLogSayisi + 1;
+
+    lblSonuc.Text = 'Hata: QR eslesmedi. Beklenen: ' + BeklenenQR;
+  }
+
+  edtQRIcerik.Text = '';
+  RenderLog;
 }
 
-procedure RenderQRLog;
+void OnGeri;
+{
+  CallerForm.clShow;
+  QRForm.clHide;
+}
+
+// ─── LOG RENDER ───────────────────────────────────────────
+
+procedure RenderLog;
 var
   i      : Integer;
   row    : TclProPanel;
-  lblR   : TclProLabel;
-  BgClr  : String;
+  lblTNo : TclProLabel;
+  lblDur : TclProLabel;
+  lblTar : TclProLabel;
+  TalepNo: String;
+  Renk   : String;
 {
   try
     scrLog.Free;
   except
   }
 
-  scrLog = QRForm.AddNewVertScrollBox(pnlGeçmisi, 'scrQRL');
+  scrLog = QRForm.AddNewVertScrollBox(pnlLog, 'scrLog');
   scrLog.Align = alClient;
 
-  if (QRLogSayisi == 0)
-  {
-    lblR = QRForm.AddNewProLabel(scrLog, 'lempty', 'Henuz QR okutma yapilmadi');
-    clComponent.SetupComponent(lblR, '{"Align":"Top","Height":36,"MarginTop":12,"TextSize":13,"TextColor":"#9CA3AF","TextHorizontalAlign":"center","BackgroundColor":"null"}');
-    Exit;
-  }
+  TalepNo = ArrTalepNo.GetItem(SeciliTalepIndex);
 
   for (i = QRLogSayisi - 1 downto 0)
   {
+    if (ArrQRLog_TalepNo.GetItem(i) <> TalepNo) then Continue;
+
     if (ArrQRLog_Durum.GetItem(i) == 'Basarili')
-      BgClr = '#F0FDF4'
+      Renk = '#16A34A'
     else
-      BgClr = '#FEF2F2';
+      Renk = '#DC2626';
 
-    row = QRForm.AddNewProPanel(scrLog, 'qrow' + IntToStr(i));
-    clComponent.SetupComponent(row, '{"Align":"Top","Height":54,"BackgroundColor":"'+BgClr+'","RoundHeight":6,"RoundWidth":6,"BorderWidth":1,"BorderColor":"#E5E7EB","MarginLeft":8,"MarginRight":8,"MarginTop":4}');
+    row = QRForm.AddNewProPanel(scrLog, 'lrow' + IntToStr(i));
+    clComponent.SetupComponent(row, '{"Align":"Top","Height":36,"BackgroundColor":"#FFFFFF","RoundHeight":6,"RoundWidth":6,"BorderWidth":1,"BorderColor":"#E5E7EB","MarginLeft":8,"MarginRight":8,"MarginTop":4}');
 
-    lblR = QRForm.AddNewProLabel(row, 'lqno' + IntToStr(i), ArrQRLog_TalepNo.GetItem(i) + '  —  ' + ArrQRLog_Durum.GetItem(i));
-    clComponent.SetupComponent(lblR, '{"Align":"Top","Height":20,"MarginLeft":10,"MarginTop":6,"TextSize":12,"TextBold":"yes","TextColor":"#111827","TextHorizontalAlign":"leading","BackgroundColor":"null"}');
+    lblDur = QRForm.AddNewProLabel(row, 'ldur' + IntToStr(i), ArrQRLog_Durum.GetItem(i));
+    clComponent.SetupComponent(lblDur, '{"Align":"Left","Width":80,"MarginLeft":8,"TextSize":11,"TextBold":"yes","TextColor":"'+Renk+'","TextVerticalAlign":"center","BackgroundColor":"null"}');
 
-    lblR = QRForm.AddNewProLabel(row, 'lqt' + IntToStr(i), 'QR: ' + ArrQRLog_QRIcerik.GetItem(i) + '   ' + ArrQRLog_Tarih.GetItem(i));
-    clComponent.SetupComponent(lblR, '{"Align":"Top","Height":18,"MarginLeft":10,"TextSize":10,"TextColor":"#6B7280","TextHorizontalAlign":"leading","BackgroundColor":"null"}');
+    lblTar = QRForm.AddNewProLabel(row, 'ltar' + IntToStr(i), ArrQRLog_Tarih.GetItem(i));
+    clComponent.SetupComponent(lblTar, '{"Align":"Client","MarginLeft":4,"TextSize":10,"TextColor":"#6B7280","TextVerticalAlign":"center","BackgroundColor":"null"}');
   }
-}
-
-// ─── OLAY: DOGRULA ───────────────────────────────────────
-
-void OnDogrula;
-var
-  TalepNo     : String;
-  OkunanQR    : String;
-  BeklenenQR  : String;
-  DogIndex    : Integer;
-  i           : Integer;
-{
-  TalepNo   = Trim(edtTalepNo.Text);
-  OkunanQR  = Trim(edtQR.Text);
-
-  if (TalepNo == '')
-  {
-    lblSonuc.Text = 'Hata: Talep numarasi giriniz.';
-    Exit;
-  }
-
-  if (OkunanQR == '')
-  {
-    lblSonuc.Text = 'Hata: QR kodu giriniz.';
-    Exit;
-  }
-
-  BeklenenQR = GetBeklenenQR(TalepNo);
-
-  // Kayit
-  ArrQRLog_TalepNo.Add(TalepNo);
-  ArrQRLog_QRIcerik.Add(OkunanQR);
-  ArrQRLog_Tarih.Add(FormatDateTime('dd.mm.yyyy hh:nn:ss', Now));
-
-  if (OkunanQR == BeklenenQR)
-  {
-    ArrQRLog_Durum.Add('Basarili');
-    QRLogSayisi = QRLogSayisi + 1;
-
-    // Talep dogrulama isaretleme
-    DogIndex = -1;
-    for (i = 0 to DogSayisi - 1)
-    {
-      if (ArrDog_TalepNo.GetItem(i) == TalepNo)
-      {
-        DogIndex = i;
-        break;
-      }
-    }
-
-    if (DogIndex >= 0)
-      ArrDog_Durum.SetItem(DogIndex, 1);
-
-    lblSonuc.Text = 'QR dogrulama BASARILI. Is baslatilebilir.';
-    edtTalepNo.Text = '';
-    edtQR.Text = '';
-  }
-  else
-  {
-    ArrQRLog_Durum.Add('Basarisiz');
-    QRLogSayisi = QRLogSayisi + 1;
-    lblSonuc.Text = 'QR uyusmazligi. Beklenen: ' + BeklenenQR;
-  }
-
-  RenderQRLog;
 }
 
 // ─── UI YAPIMI ────────────────────────────────────────────
 
 procedure BuildQRUI;
+var
+  btnGeri : TClProButton;
 {
-  pnlHeader = QRForm.AddNewProPanel(QRForm, 'pnlH');
+  pnlHeader = QRForm.AddNewProPanel(QRForm, 'pnlHeader');
   pnlHeader.Align = alMostTop;
   pnlHeader.Height = 50;
-  clComponent.SetupComponent(pnlHeader, '{"BackgroundColor":"#111827","BorderWidth":0}');
+  clComponent.SetupComponent(pnlHeader, '{"BackgroundColor":"#6366F1","BorderWidth":0,"RoundHeight":0,"RoundWidth":0}');
 
-  lblTitle = QRForm.AddNewProLabel(pnlHeader, 'lblT', 'QR Saha Dogrulama');
-  clComponent.SetupComponent(lblTitle, '{"Align":"Left","Width":220,"MarginLeft":16,"TextSize":16,"TextBold":"yes","TextColor":"#FFFFFF","TextVerticalAlign":"center","BackgroundColor":"null"}');
+  btnGeri = QRForm.AddNewProButton(pnlHeader, 'btnQGeri', '<');
+  clComponent.SetupComponent(btnGeri, '{"Align":"Left","Width":40,"BackgroundColor":"null","TextColor":"#FFFFFF","TextSize":18,"TextBold":"yes","BorderWidth":0}');
+  btnGeri.OnClick = 'OnGeri';
 
-  pnlForm = QRForm.AddNewProPanel(QRForm, 'pnlF');
-  pnlForm.Align = alMostTop;
-  pnlForm.Height = 180;
-  clComponent.SetupComponent(pnlForm, '{"BackgroundColor":"null","BorderWidth":0}');
+  lblTitle = QRForm.AddNewProLabel(pnlHeader, 'lblTitle', 'QR Dogrulama');
+  clComponent.SetupComponent(lblTitle, '{"Align":"Client","MarginLeft":4,"TextSize":16,"TextBold":"yes","TextColor":"#FFFFFF","TextVerticalAlign":"center","BackgroundColor":"null"}');
 
-  lblTalepHint = QRForm.AddNewProLabel(pnlForm, 'lth', 'Talep No');
-  clComponent.SetupComponent(lblTalepHint, '{"Align":"Top","Height":20,"MarginLeft":14,"MarginTop":12,"TextSize":11,"TextColor":"#374151","TextHorizontalAlign":"leading","BackgroundColor":"null"}');
+  // Talep bilgi
+  pnlTalepBilgi = QRForm.AddNewProPanel(QRForm, 'pnlBilgi');
+  pnlTalepBilgi.Align = alMostTop;
+  pnlTalepBilgi.Height = 70;
+  clComponent.SetupComponent(pnlTalepBilgi, '{"BackgroundColor":"#EEF2FF","RoundHeight":0,"RoundWidth":0,"BorderWidth":0}');
 
-  edtTalepNo = QRForm.AddNewProEdit(pnlForm, 'edtTN', 'TLP-XXXXXXXX-X');
-  edtTalepNo.Align = alMostTop;
-  edtTalepNo.Height = 42;
-  edtTalepNo.Margins.Left = 14;
-  edtTalepNo.Margins.Right = 14;
-  edtTalepNo.Margins.Top = 2;
+  lblTalepNo = QRForm.AddNewProLabel(pnlTalepBilgi, 'lblTNo', 'No: ' + ArrTalepNo.GetItem(SeciliTalepIndex));
+  clComponent.SetupComponent(lblTalepNo, '{"Align":"Top","Height":20,"MarginLeft":16,"MarginTop":8,"TextSize":11,"TextColor":"#6B7280","TextHorizontalAlign":"leading","BackgroundColor":"null"}');
 
-  lblQRHint = QRForm.AddNewProLabel(pnlForm, 'lqrh', 'QR Icerik (kameradan okunan)');
-  clComponent.SetupComponent(lblQRHint, '{"Align":"Top","Height":20,"MarginLeft":14,"MarginTop":10,"TextSize":11,"TextColor":"#374151","TextHorizontalAlign":"leading","BackgroundColor":"null"}');
+  lblTalepBaslik = QRForm.AddNewProLabel(pnlTalepBilgi, 'lblTBas', ArrBaslik.GetItem(SeciliTalepIndex));
+  clComponent.SetupComponent(lblTalepBaslik, '{"Align":"Top","Height":22,"MarginLeft":16,"TextSize":14,"TextBold":"yes","TextColor":"#111827","TextHorizontalAlign":"leading","BackgroundColor":"null"}');
 
-  edtQR = QRForm.AddNewProEdit(pnlForm, 'edtQR', 'ARIZA-TLP-...');
-  edtQR.Align = alMostTop;
-  edtQR.Height = 42;
-  edtQR.Margins.Left = 14;
-  edtQR.Margins.Right = 14;
-  edtQR.Margins.Top = 2;
+  if (ArrQRDogrulandi.GetItem(SeciliTalepIndex) == 1)
+    lblBeklenenQR = QRForm.AddNewProLabel(pnlTalepBilgi, 'lblBQR', 'Durum: Dogrulandi')
+  else
+    lblBeklenenQR = QRForm.AddNewProLabel(pnlTalepBilgi, 'lblBQR', 'Beklenen: ' + GetBeklenenQR(ArrTalepNo.GetItem(SeciliTalepIndex)));
+  clComponent.SetupComponent(lblBeklenenQR, '{"Align":"Top","Height":18,"MarginLeft":16,"TextSize":12,"TextColor":"#374151","TextHorizontalAlign":"leading","BackgroundColor":"null"}');
 
-  btnDogrula = QRForm.AddNewProButton(QRForm, 'btnD', 'Dogrula');
-  btnDogrula.Align = alMostTop;
-  btnDogrula.Height = 44;
-  btnDogrula.Margins.Left = 14;
-  btnDogrula.Margins.Right = 14;
-  btnDogrula.Margins.Top = 8;
-  clComponent.SetupComponent(btnDogrula, '{"BackgroundColor":"#6366F1","TextColor":"#FFFFFF","TextSize":14,"TextBold":"yes","RoundHeight":8,"RoundWidth":8,"BorderWidth":0}');
+  // Tarama alani
+  pnlTarama = QRForm.AddNewProPanel(QRForm, 'pnlTar');
+  pnlTarama.Align = alMostTop;
+  pnlTarama.Height = 100;
+  clComponent.SetupComponent(pnlTarama, '{"BackgroundColor":"null","BorderWidth":0}');
+
+  edtQRIcerik = QRForm.AddNewProEdit(pnlTarama, 'edtQR', 'QR icerigini girin...');
+  clComponent.SetupComponent(edtQRIcerik, '{"Align":"Top","Height":40,"MarginLeft":16,"MarginRight":16,"MarginTop":12,"TextSize":13,"RoundHeight":10,"RoundWidth":10,"BorderWidth":0,"BackgroundColor":"#FFFFFF"}');
+
+  btnDogrula = QRForm.AddNewProButton(pnlTarama, 'btnDog', 'Dogrula');
+  clComponent.SetupComponent(btnDogrula, '{"Align":"Top","Height":40,"MarginLeft":16,"MarginRight":16,"MarginTop":8,"BackgroundColor":"#16A34A","TextColor":"#FFFFFF","TextBold":"yes","TextSize":14,"RoundHeight":10,"RoundWidth":10,"BorderWidth":0}');
   btnDogrula.OnClick = 'OnDogrula';
 
   lblSonuc = QRForm.AddNewProLabel(QRForm, 'lblSonuc', '');
   lblSonuc.Align = alMostTop;
-  lblSonuc.Height = 30;
-  lblSonuc.Margins.Left = 14;
-  clComponent.SetupComponent(lblSonuc, '{"TextSize":12,"TextColor":"#374151","TextHorizontalAlign":"leading","BackgroundColor":"null"}');
+  lblSonuc.Height = 24;
+  clComponent.SetupComponent(lblSonuc, '{"MarginLeft":16,"TextSize":12,"TextColor":"#374151","TextHorizontalAlign":"leading","BackgroundColor":"null"}');
 
-  pnlGeçmisi = QRForm.AddNewProPanel(QRForm, 'pnlGec');
-  pnlGeçmisi.Align = alClient;
-  clComponent.SetupComponent(pnlGeçmisi, '{"BackgroundColor":"#F9FAFB","BorderWidth":1,"BorderColor":"#E5E7EB","MarginLeft":10,"MarginRight":10,"MarginTop":4,"MarginBottom":8,"RoundHeight":8,"RoundWidth":8}');
+  // Log paneli
+  pnlLog = QRForm.AddNewProPanel(QRForm, 'pnlLog');
+  pnlLog.Align = alClient;
+  clComponent.SetupComponent(pnlLog, '{"BackgroundColor":"null","BorderWidth":0}');
 
-  RenderQRLog;
+  lblLogHeader = QRForm.AddNewProLabel(pnlLog, 'lblLH', 'Dogrulama Gecmisi:');
+  clComponent.SetupComponent(lblLogHeader, '{"Align":"Top","Height":22,"MarginLeft":16,"MarginTop":6,"TextSize":12,"TextBold":"yes","TextColor":"#374151","TextHorizontalAlign":"leading","BackgroundColor":"null"}');
 }
 
 // ─── ANA PROGRAM ─────────────────────────────────────────
 
 {
-  ArrQRLog_TalepNo  = TclArrayString.Create;
-  ArrQRLog_QRIcerik = TclArrayString.Create;
-  ArrQRLog_Durum    = TclArrayString.Create;
-  ArrQRLog_Tarih    = TclArrayString.Create;
-  QRLogSayisi       = 0;
-
-  ArrDog_TalepNo    = TclArrayString.Create;
-  ArrDog_Durum      = TclArrayInteger.Create;
-  DogSayisi         = 0;
-
-  LoadDemoTalepler;
-
   QRForm = TclStyleForm.Create(Self);
   QRForm.clSetStyle(QRForm.LightSB);
   QRForm.clCaption = 'QR Dogrulama';
 
   BuildQRUI;
+  RenderLog;
 
   QRForm.Run;
 }
