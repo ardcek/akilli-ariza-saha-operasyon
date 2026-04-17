@@ -1,0 +1,207 @@
+/*
+  Akilli Ariza ve Saha Operasyon Platformu
+  Modul: Giris ve Rol Bazli Kullanici Yonetimi
+  Dil: Clomosy TRObject
+
+  Roller:
+    TalepAcan   - Talep olusturur, kendi taleplerini takip eder
+    SahaPersoneli - Atanan isleri gorur, durum degistirir, QR yapar
+    Yonetici    - Tum isleri gorur, personel atar, dashboard izler
+
+  Bu modul:
+    - Kullanici kimlik dogrulamasi
+    - Rol belirleme
+    - Rol bazli ilk ekrana yonlendirme
+*/
+
+var
+  GirisForm        : TclStyleForm;
+
+  pnlLogo          : TclProPanel;
+  lblAppTitle      : TclProLabel;
+  lblVersion       : TclProLabel;
+
+  pnlForm          : TclProPanel;
+  lblKullaniciAdi  : TclProLabel;
+  edtKullaniciAdi  : TClProEdit;
+  lblSifre         : TclProLabel;
+  edtSifre         : TClProEdit;
+  btnGiris         : TClProButton;
+  lblHata          : TclProLabel;
+
+  // Aktif oturum bilgileri (uygulama genelinde kullanilacak global degerler)
+  AktifKullaniciId   : Integer;
+  AktifKullaniciAd   : String;
+  AktifRol           : String;
+
+  // Statik kullanici listesi (MVP - veritabani yerine)
+  ArrKulAdi          : TclArrayString;
+  ArrKulSifre        : TclArrayString;
+  ArrKulRol          : TclArrayString;
+  ArrKulId           : TclArrayInteger;
+  ArrKulAdSoyad      : TclArrayString;
+
+// ─── DEMO KULLANICI VERISI ────────────────────────────────
+
+procedure LoadDemoUsers;
+{
+  // TalepAcan kullanicisi
+  ArrKulId.Add(1001);
+  ArrKulAdi.Add('talep1');
+  ArrKulSifre.Add('1234');
+  ArrKulRol.Add('TalepAcan');
+  ArrKulAdSoyad.Add('Ahmet Yilmaz');
+
+  // Saha Personeli
+  ArrKulId.Add(2001);
+  ArrKulAdi.Add('saha1');
+  ArrKulSifre.Add('1234');
+  ArrKulRol.Add('SahaPersoneli');
+  ArrKulAdSoyad.Add('Mehmet Kaya');
+
+  // Yonetici
+  ArrKulId.Add(3001);
+  ArrKulAdi.Add('yonetici1');
+  ArrKulSifre.Add('1234');
+  ArrKulRol.Add('Yonetici');
+  ArrKulAdSoyad.Add('Ayse Demir');
+}
+
+// ─── KİMLİK DOĞRULAMA ────────────────────────────────────
+
+function AuthenticateUser(KulAdi, Sifre: String): Boolean;
+var
+  i : Integer;
+{
+  Result = False;
+
+  for (i = 0 to ArrKulAdi.Count - 1)
+  {
+    if ((ArrKulAdi.GetItem(i) == Trim(KulAdi)) && (ArrKulSifre.GetItem(i) == Trim(Sifre)))
+    {
+      AktifKullaniciId = ArrKulId.GetItem(i);
+      AktifKullaniciAd = ArrKulAdSoyad.GetItem(i);
+      AktifRol = ArrKulRol.GetItem(i);
+      Result = True;
+      Exit;
+    }
+  }
+}
+
+// ─── ROL BAZLI YÖNLENDİRME ───────────────────────────────
+
+procedure NavigateByRole;
+{
+  GirisForm.Hide;
+
+  if (AktifRol == 'Yonetici')
+    ShowMessage('[YON] Yonetici paneline hos geldiniz: ' + AktifKullaniciAd)
+  else if (AktifRol == 'SahaPersoneli')
+    ShowMessage('[SAH] Saha is listesine yonlendiriliyorsunuz: ' + AktifKullaniciAd)
+  else if (AktifRol == 'TalepAcan')
+    ShowMessage('[TAL] Talep acma ekranina yonlendiriliyorsunuz: ' + AktifKullaniciAd)
+  else
+    ShowMessage('Hata: Tanimsiz rol. Yonetici ile iletisime gecin.');
+}
+
+// ─── OLAY: GİRİŞ BUTONU ──────────────────────────────────
+
+void OnGirisClick;
+var
+  KulAdi, Sifre : String;
+{
+  KulAdi = Trim(edtKullaniciAdi.Text);
+  Sifre  = Trim(edtSifre.Text);
+
+  if (KulAdi == '')
+  {
+    lblHata.Text = 'Hata: Kullanici adi bos birakilamaz.';
+    Exit;
+  }
+
+  if (Sifre == '')
+  {
+    lblHata.Text = 'Hata: Sifre bos birakilamaz.';
+    Exit;
+  }
+
+  if not AuthenticateUser(KulAdi, Sifre)
+  {
+    lblHata.Text = 'Hata: Kullanici adi veya sifre yanlis.';
+    edtSifre.Text = '';
+    Exit;
+  }
+
+  lblHata.Text = '';
+  NavigateByRole;
+}
+
+// ─── UI YAPIMI ────────────────────────────────────────────
+
+procedure BuildGirisUI;
+{
+  pnlLogo = GirisForm.AddNewProPanel(GirisForm, 'pnlLogo');
+  pnlLogo.Align = alMostTop;
+  pnlLogo.Height = 80;
+  clComponent.SetupComponent(pnlLogo, '{"BackgroundColor":"#6366F1","RoundHeight":0,"RoundWidth":0,"BorderWidth":0}');
+
+  lblAppTitle = GirisForm.AddNewProLabel(pnlLogo, 'lblAppTitle', 'Akilli Ariza Platformu');
+  clComponent.SetupComponent(lblAppTitle, '{"Align":"Client","TextSize":20,"TextBold":"yes","TextColor":"#FFFFFF","TextHorizontalAlign":"center","TextVerticalAlign":"center","BackgroundColor":"null"}');
+
+  pnlForm = GirisForm.AddNewProPanel(GirisForm, 'pnlForm');
+  pnlForm.Align = alClient;
+  clComponent.SetupComponent(pnlForm, '{"BackgroundColor":"#F5F5F5","BorderWidth":0,"RoundHeight":0,"RoundWidth":0}');
+
+  lblKullaniciAdi = GirisForm.AddNewProLabel(pnlForm, 'lblKul', 'Kullanici Adi');
+  clComponent.SetupComponent(lblKullaniciAdi, '{"Align":"Top","Height":24,"MarginTop":24,"MarginLeft":24,"TextSize":12,"TextColor":"#374151","TextHorizontalAlign":"leading","BackgroundColor":"null"}');
+
+  edtKullaniciAdi = GirisForm.AddNewProEdit(pnlForm, 'edtKulAdi', 'ornek: yonetici1');
+  edtKullaniciAdi.Align = alMostTop;
+  edtKullaniciAdi.Height = 44;
+  edtKullaniciAdi.Margins.Left = 24;
+  edtKullaniciAdi.Margins.Right = 24;
+  edtKullaniciAdi.Margins.Top = 4;
+
+  lblSifre = GirisForm.AddNewProLabel(pnlForm, 'lblSif', 'Sifre');
+  clComponent.SetupComponent(lblSifre, '{"Align":"Top","Height":24,"MarginTop":14,"MarginLeft":24,"TextSize":12,"TextColor":"#374151","TextHorizontalAlign":"leading","BackgroundColor":"null"}');
+
+  edtSifre = GirisForm.AddNewProEdit(pnlForm, 'edtSifre', '••••');
+  edtSifre.Align = alMostTop;
+  edtSifre.Height = 44;
+  edtSifre.Margins.Left = 24;
+  edtSifre.Margins.Right = 24;
+  edtSifre.Margins.Top = 4;
+  edtSifre.Password = True;
+
+  btnGiris = GirisForm.AddNewProButton(pnlForm, 'btnGiris', 'Giris Yap');
+  btnGiris.Align = alMostTop;
+  btnGiris.Height = 48;
+  btnGiris.Margins.Left = 24;
+  btnGiris.Margins.Right = 24;
+  btnGiris.Margins.Top = 20;
+  clComponent.SetupComponent(btnGiris, '{"BackgroundColor":"#6366F1","TextColor":"#FFFFFF","TextSize":15,"TextBold":"yes","RoundHeight":12,"RoundWidth":12,"BorderWidth":0}');
+  btnGiris.OnClick = 'OnGirisClick';
+
+  lblHata = GirisForm.AddNewProLabel(pnlForm, 'lblHata', '');
+  clComponent.SetupComponent(lblHata, '{"Align":"Top","Height":28,"MarginTop":10,"MarginLeft":24,"TextSize":12,"TextColor":"#DC2626","TextHorizontalAlign":"leading","BackgroundColor":"null"}');
+}
+
+// ─── ANA PROGRAM ─────────────────────────────────────────
+
+{
+  ArrKulId      = TclArrayInteger.Create;
+  ArrKulAdi     = TclArrayString.Create;
+  ArrKulSifre   = TclArrayString.Create;
+  ArrKulRol     = TclArrayString.Create;
+  ArrKulAdSoyad = TclArrayString.Create;
+
+  LoadDemoUsers;
+
+  GirisForm = TclStyleForm.Create(Self);
+  GirisForm.clSetStyle(GirisForm.LightSB);
+  GirisForm.clCaption = 'Giris - Akilli Ariza Platformu';
+
+  BuildGirisUI;
+
+  GirisForm.Run;
+}

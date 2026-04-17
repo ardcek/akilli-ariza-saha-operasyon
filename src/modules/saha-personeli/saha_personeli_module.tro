@@ -1,0 +1,322 @@
+/*
+  Akilli Ariza ve Saha Operasyon Platformu
+  Modul: Saha Personeli Is Listesi
+  Dil: Clomosy TRObject
+
+  Bu modul:
+    - Sadece oturum acik personele atanmis isleri listeler
+    - Durum degisikligine izin verir (Atandi -> Yolda -> Islemde -> Tamamlandi)
+    - Is kurallari:
+        Atanmamis is Tamamlandi yapılamaz
+        QR dogrulama olmadan Islemde baslangici kesinlesmez (uyari verilir)
+        Tamamlandi durumunda kapaniş notu zorunlu
+        Beklemede durumunda aciklama zorunlu
+    - DurumGecmisi log kaydi olusturur
+*/
+
+var
+  SahaForm           : TclStyleForm;
+
+  pnlHeader          : TclProPanel;
+  lblTitle           : TclProLabel;
+  lblPersonelAd      : TclProLabel;
+
+  scrIsListesi       : TclVertScrollBox;
+
+  pnlDetay           : TclProPanel;
+  lblDetayBaslik     : TclProLabel;
+  lblDetayDurum      : TclProLabel;
+  lblDetayNot        : TclProLabel;
+  edtNot             : TClProEdit;
+
+  pnlDurumAkis       : TclProPanel;
+  btnYolda           : TClProButton;
+  btnIslemde         : TClProButton;
+  btnBeklemede       : TClProButton;
+  btnTamamlandi      : TClProButton;
+  lblSonuc           : TclProLabel;
+
+  // Aktif personel
+  AktifPersonelId    : Integer;
+  AktifPersonelAd    : String;
+
+  // Secili is
+  SeciliIsIndex      : Integer;
+  SeciliTalepNo      : String;
+  SeciliBaslik       : String;
+  SeciliDurum        : String;
+
+  // Is verileri (MVP statik)
+  ArrTalepNo         : TclArrayString;
+  ArrBaslik          : TclArrayString;
+  ArrDurum           : TclArrayString;
+  ArrPersonelId      : TclArrayInteger;
+  ArrHedefKapanis    : TclArrayString;
+  ArrQRDogrulandi    : TclArrayInteger;  // 0=hayir 1=evet
+  IsSayisi           : Integer;
+
+  // DurumGecmisi
+  ArrDG_TalepNo      : TclArrayString;
+  ArrDG_Durum        : TclArrayString;
+  ArrDG_Not          : TclArrayString;
+  ArrDG_YapanId      : TclArrayInteger;
+  ArrDG_Tarih        : TclArrayString;
+
+// ─── YARDIMCILAR ─────────────────────────────────────────
+
+procedure AddDurumLog(TalepNo, Durum, NotMt: String; YapanId: Integer);
+{
+  ArrDG_TalepNo.Add(TalepNo);
+  ArrDG_Durum.Add(Durum);
+  ArrDG_Not.Add(NotMt);
+  ArrDG_YapanId.Add(YapanId);
+  ArrDG_Tarih.Add(FormatDateTime('dd.mm.yyyy hh:nn:ss', Now));
+}
+
+procedure RefreshDetayPanel;
+{
+  if (SeciliIsIndex < 0)
+  {
+    lblDetayBaslik.Text = 'Listeden bir is secin';
+    lblDetayDurum.Text = '';
+    Exit;
+  }
+
+  lblDetayBaslik.Text = SeciliBaslik;
+  lblDetayDurum.Text = 'Durum: ' + SeciliDurum;
+  lblDetayNot.Text = 'Kapaniş notu:';
+}
+
+// ─── IS LİSTESİ RENDER ───────────────────────────────────
+
+procedure RenderIsListesi;
+var
+  i      : Integer;
+  row    : TclProPanel;
+  lblNo  : TclProLabel;
+  lblBas : TclProLabel;
+  lblDur : TclProLabel;
+  btnSec : TClProButton;
+  BgClr  : String;
+{
+  try
+    scrIsListesi.Free;
+  except
+  }
+
+  scrIsListesi = SahaForm.AddNewVertScrollBox(SahaForm, 'scrIL');
+  scrIsListesi.Align = alMostTop;
+  scrIsListesi.Height = 240;
+  scrIsListesi.Margins.Top = 4;
+
+  for (i = 0 to IsSayisi - 1)
+  {
+    if (ArrPersonelId.GetItem(i) <> AktifPersonelId) then Continue;
+    if (ArrDurum.GetItem(i) == 'Tamamlandi') then Continue;
+    if (ArrDurum.GetItem(i) == 'Iptal') then Continue;
+
+    if (i == SeciliIsIndex)
+      BgClr = '#EEF2FF'
+    else
+      BgClr = '#FFFFFF';
+
+    row = SahaForm.AddNewProPanel(scrIsListesi, 'row' + IntToStr(i));
+    clComponent.SetupComponent(row, '{"Align":"Top","Height":60,"BackgroundColor":"'+BgClr+'","RoundHeight":8,"RoundWidth":8,"BorderWidth":1,"BorderColor":"#E5E7EB","MarginLeft":10,"MarginRight":10,"MarginTop":6}');
+
+    lblNo = SahaForm.AddNewProLabel(row, 'lno' + IntToStr(i), ArrTalepNo.GetItem(i));
+    clComponent.SetupComponent(lblNo, '{"Align":"Top","Height":16,"MarginLeft":10,"MarginTop":6,"TextSize":10,"TextColor":"#6B7280","TextHorizontalAlign":"leading","BackgroundColor":"null"}');
+
+    lblBas = SahaForm.AddNewProLabel(row, 'lbas' + IntToStr(i), ArrBaslik.GetItem(i));
+    clComponent.SetupComponent(lblBas, '{"Align":"Top","Height":20,"MarginLeft":10,"TextSize":13,"TextBold":"yes","TextColor":"#111827","TextHorizontalAlign":"leading","BackgroundColor":"null"}');
+
+    lblDur = SahaForm.AddNewProLabel(row, 'ldur' + IntToStr(i), ArrDurum.GetItem(i));
+    clComponent.SetupComponent(lblDur, '{"Align":"Left","Width":120,"MarginLeft":10,"TextSize":11,"TextColor":"#6366F1","TextVerticalAlign":"center","BackgroundColor":"null"}');
+
+    btnSec = SahaForm.AddNewProButton(row, 'bsec' + IntToStr(i), 'Sec');
+    btnSec.clTagInt = i;
+    clComponent.SetupComponent(btnSec, '{"Align":"Right","Width":56,"MarginRight":10,"MarginTop":14,"MarginBottom":14,"BackgroundColor":"#6366F1","TextColor":"#FFFFFF","TextSize":11,"RoundHeight":8,"RoundWidth":8,"BorderWidth":0}');
+    btnSec.OnClick = 'OnIsSec';
+  }
+}
+
+// ─── OLAY: IS SEÇ ────────────────────────────────────────
+
+void OnIsSec;
+{
+  SeciliIsIndex = TClProButton(SahaForm.clSender).clTagInt;
+  SeciliTalepNo = ArrTalepNo.GetItem(SeciliIsIndex);
+  SeciliBaslik  = ArrBaslik.GetItem(SeciliIsIndex);
+  SeciliDurum   = ArrDurum.GetItem(SeciliIsIndex);
+  edtNot.Text = '';
+  lblSonuc.Text = '';
+  RefreshDetayPanel;
+  RenderIsListesi;
+}
+
+// ─── DURUM GEÇİŞ PROSEDÜRÜ ───────────────────────────────
+
+procedure DurumGuncelle(YeniDurum: String);
+var
+  Not : String;
+{
+  if (SeciliIsIndex < 0)
+  {
+    lblSonuc.Text = 'Hata: Once listeden bir is secin.';
+    Exit;
+  }
+
+  Not = Trim(edtNot.Text);
+
+  // Is kurali: QR olmadan Islemde gecilmez
+  if (YeniDurum == 'Islemde')
+  {
+    if (ArrQRDogrulandi.GetItem(SeciliIsIndex) == 0)
+    {
+      lblSonuc.Text = 'Hata: QR dogrulama yapilmadan is baslatılamaz. Once QR modülünü kullanin.';
+      Exit;
+    }
+  }
+
+  // Is kurali: Tamamlandi icin not zorunlu
+  if (YeniDurum == 'Tamamlandi')
+  {
+    if (Not == '')
+    {
+      lblSonuc.Text = 'Hata: Tamamlandi durumu icin kapanis notu zorunludur.';
+      Exit;
+    }
+  }
+
+  // Is kurali: Beklemede icin not zorunlu
+  if (YeniDurum == 'Beklemede')
+  {
+    if (Not == '')
+    {
+      lblSonuc.Text = 'Hata: Beklemede durumu icin aciklama zorunludur.';
+      Exit;
+    }
+  }
+
+  ArrDurum.SetItem(SeciliIsIndex, YeniDurum);
+  SeciliDurum = YeniDurum;
+
+  AddDurumLog(SeciliTalepNo, YeniDurum, Not, AktifPersonelId);
+  lblSonuc.Text = 'Basarili: Durum ' + YeniDurum + ' olarak guncellendi.';
+  RefreshDetayPanel;
+  RenderIsListesi;
+}
+
+void OnYolda;     { DurumGuncelle('Yolda');      }
+void OnIslemde;   { DurumGuncelle('Islemde');    }
+void OnBeklemede; { DurumGuncelle('Beklemede');  }
+void OnTamamlandi; { DurumGuncelle('Tamamlandi'); }
+
+// ─── UI YAPIMI ────────────────────────────────────────────
+
+procedure BuildSahaUI;
+{
+  pnlHeader = SahaForm.AddNewProPanel(SahaForm, 'pnlH');
+  pnlHeader.Align = alMostTop;
+  pnlHeader.Height = 50;
+  clComponent.SetupComponent(pnlHeader, '{"BackgroundColor":"#16A34A","BorderWidth":0}');
+
+  lblTitle = SahaForm.AddNewProLabel(pnlHeader, 'lblTtl', 'Saha Is Listesi');
+  clComponent.SetupComponent(lblTitle, '{"Align":"Left","Width":180,"MarginLeft":16,"TextSize":16,"TextBold":"yes","TextColor":"#FFFFFF","TextVerticalAlign":"center","BackgroundColor":"null"}');
+
+  lblPersonelAd = SahaForm.AddNewProLabel(pnlHeader, 'lblPAd', AktifPersonelAd);
+  clComponent.SetupComponent(lblPersonelAd, '{"Align":"Right","Width":160,"MarginRight":12,"TextSize":11,"TextColor":"#BBF7D0","TextHorizontalAlign":"trailing","TextVerticalAlign":"center","BackgroundColor":"null"}');
+
+  // Is listesi
+  RenderIsListesi;
+
+  // Detay paneli
+  pnlDetay = SahaForm.AddNewProPanel(SahaForm, 'pnlDet');
+  pnlDetay.Align = alMostTop;
+  pnlDetay.Height = 70;
+  clComponent.SetupComponent(pnlDetay, '{"BackgroundColor":"#F0FDF4","BorderWidth":1,"BorderColor":"#BBF7D0","MarginLeft":10,"MarginRight":10,"MarginTop":8,"RoundHeight":8,"RoundWidth":8}');
+
+  lblDetayBaslik = SahaForm.AddNewProLabel(pnlDetay, 'ldetbas', 'Listeden bir is secin');
+  clComponent.SetupComponent(lblDetayBaslik, '{"Align":"Top","Height":26,"MarginLeft":12,"MarginTop":8,"TextSize":14,"TextBold":"yes","TextColor":"#111827","TextHorizontalAlign":"leading","BackgroundColor":"null"}');
+
+  lblDetayDurum = SahaForm.AddNewProLabel(pnlDetay, 'ldetdur', '');
+  clComponent.SetupComponent(lblDetayDurum, '{"Align":"Top","Height":20,"MarginLeft":12,"TextSize":12,"TextColor":"#16A34A","TextHorizontalAlign":"leading","BackgroundColor":"null"}');
+
+  lblDetayNot = SahaForm.AddNewProLabel(pnlDetay, 'ldetnot', 'Kapanis notu:');
+  clComponent.SetupComponent(lblDetayNot, '{"Align":"Top","Height":20,"MarginLeft":12,"TextSize":11,"TextColor":"#374151","TextHorizontalAlign":"leading","BackgroundColor":"null"}');
+
+  edtNot = SahaForm.AddNewProEdit(SahaForm, 'edtNot', 'Not girin (gerekirse)');
+  edtNot.Align = alMostTop;
+  edtNot.Height = 42;
+  edtNot.Margins.Left = 10;
+  edtNot.Margins.Right = 10;
+  edtNot.Margins.Top = 6;
+
+  // Durum akis butonlari
+  pnlDurumAkis = SahaForm.AddNewProPanel(SahaForm, 'pnlDA');
+  pnlDurumAkis.Align = alMostTop;
+  pnlDurumAkis.Height = 50;
+  clComponent.SetupComponent(pnlDurumAkis, '{"BackgroundColor":"null","BorderWidth":0}');
+
+  btnYolda = SahaForm.AddNewProButton(pnlDurumAkis, 'btnY', 'Yolda');
+  clComponent.SetupComponent(btnYolda, '{"Align":"Left","Width":80,"MarginLeft":10,"MarginTop":8,"MarginBottom":8,"BackgroundColor":"#D97706","TextColor":"#FFFFFF","TextSize":11,"RoundHeight":8,"RoundWidth":8,"BorderWidth":0}');
+  btnYolda.OnClick = 'OnYolda';
+
+  btnIslemde = SahaForm.AddNewProButton(pnlDurumAkis, 'btnI', 'Islemde');
+  clComponent.SetupComponent(btnIslemde, '{"Align":"Left","Width":80,"MarginLeft":6,"MarginTop":8,"MarginBottom":8,"BackgroundColor":"#6366F1","TextColor":"#FFFFFF","TextSize":11,"RoundHeight":8,"RoundWidth":8,"BorderWidth":0}');
+  btnIslemde.OnClick = 'OnIslemde';
+
+  btnBeklemede = SahaForm.AddNewProButton(pnlDurumAkis, 'btnB', 'Beklemede');
+  clComponent.SetupComponent(btnBeklemede, '{"Align":"Left","Width":90,"MarginLeft":6,"MarginTop":8,"MarginBottom":8,"BackgroundColor":"#6B7280","TextColor":"#FFFFFF","TextSize":11,"RoundHeight":8,"RoundWidth":8,"BorderWidth":0}');
+  btnBeklemede.OnClick = 'OnBeklemede';
+
+  btnTamamlandi = SahaForm.AddNewProButton(pnlDurumAkis, 'btnT', 'Tamam');
+  clComponent.SetupComponent(btnTamamlandi, '{"Align":"Left","Width":70,"MarginLeft":6,"MarginTop":8,"MarginBottom":8,"BackgroundColor":"#16A34A","TextColor":"#FFFFFF","TextSize":11,"RoundHeight":8,"RoundWidth":8,"BorderWidth":0}');
+  btnTamamlandi.OnClick = 'OnTamamlandi';
+
+  lblSonuc = SahaForm.AddNewProLabel(SahaForm, 'lblSonuc', '');
+  clComponent.SetupComponent(lblSonuc, '{"Align":"Top","Height":28,"MarginLeft":12,"TextSize":12,"TextColor":"#374151","TextHorizontalAlign":"leading","BackgroundColor":"null"}');
+}
+
+// ─── ANA PROGRAM ─────────────────────────────────────────
+
+{
+  ArrTalepNo       = TclArrayString.Create;
+  ArrBaslik        = TclArrayString.Create;
+  ArrDurum         = TclArrayString.Create;
+  ArrPersonelId    = TclArrayInteger.Create;
+  ArrHedefKapanis  = TclArrayString.Create;
+  ArrQRDogrulandi  = TclArrayInteger.Create;
+
+  ArrDG_TalepNo      = TclArrayString.Create;
+  ArrDG_Durum        = TclArrayString.Create;
+  ArrDG_Not          = TclArrayString.Create;
+  ArrDG_YapanId      = TclArrayInteger.Create;
+  ArrDG_Tarih        = TclArrayString.Create;
+
+  // Demo personel ve isler
+  AktifPersonelId = 2001;
+  AktifPersonelAd = 'Mehmet Kaya';
+  SeciliIsIndex   = -1;
+
+  ArrTalepNo.Add('TLP-20260417-1'); ArrBaslik.Add('Asansor arizasi B blok');
+  ArrDurum.Add('Atandi'); ArrPersonelId.Add(2001);
+  ArrHedefKapanis.Add('17.04.2026 17:00:00'); ArrQRDogrulandi.Add(0);
+
+  ArrTalepNo.Add('TLP-20260417-3'); ArrBaslik.Add('Klima bakimi ofis kati');
+  ArrDurum.Add('Yolda'); ArrPersonelId.Add(2001);
+  ArrHedefKapanis.Add('19.04.2026 11:00:00'); ArrQRDogrulandi.Add(1);
+
+  ArrTalepNo.Add('TLP-20260417-5'); ArrBaslik.Add('Elektrik panosu kontrolu');
+  ArrDurum.Add('Atandi'); ArrPersonelId.Add(2002);
+  ArrHedefKapanis.Add('20.04.2026 09:00:00'); ArrQRDogrulandi.Add(0);
+
+  IsSayisi = 3;
+
+  SahaForm = TclStyleForm.Create(Self);
+  SahaForm.clSetStyle(SahaForm.LightSB);
+  SahaForm.clCaption = 'Saha Is Listesi';
+
+  BuildSahaUI;
+
+  SahaForm.Run;
+}

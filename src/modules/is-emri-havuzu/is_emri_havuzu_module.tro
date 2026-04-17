@@ -1,0 +1,291 @@
+/*
+  Akilli Ariza ve Saha Operasyon Platformu
+  Modul: Is Emri Havuzu
+  Dil: Clomosy TRObject
+
+  Bu modul:
+    - Tum acik talepleri listeler
+    - Oncelik sirasina gore siralar (Kritik usttte)
+    - SLA ihlal durumunu renk ile isaretler
+    - Yonetici icin talep secimi saglar (Atama modulune gecis)
+    - Filtreleme: Durum, Oncelik
+*/
+
+var
+  HavuzForm          : TclStyleForm;
+
+  pnlHeader          : TclProPanel;
+  lblTitle           : TclProLabel;
+  lblKullanici       : TclProLabel;
+
+  pnlFiltreBar       : TclProPanel;
+  edtFiltreDurum     : TClProEdit;
+  edtFiltreOncelik   : TClProEdit;
+  btnFiltrele        : TClProButton;
+
+  scrHavuz           : TclVertScrollBox;
+
+  pnlFooter          : TclProPanel;
+  lblToplam          : TclProLabel;
+  btnYeniTalep       : TClProButton;
+
+  // Secili talep bilgisi (Atama ekranina tasimak icin)
+  SeciliTalepIndex   : Integer;
+
+  // Talep verileri (Talep Acma modulunden paylasilir; MVP'de tekrar tanim)
+  ArrTalepNo         : TclArrayString;
+  ArrBaslik          : TclArrayString;
+  ArrOncelik         : TclArrayString;
+  ArrDurum           : TclArrayString;
+  ArrAtananPersonelId: TclArrayInteger;
+  ArrAcilisTarihi    : TclArrayString;
+  ArrHedefKapanis    : TclArrayString;
+  TalepSayisi        : Integer;
+
+// ─── YARDIMCI: SLA İHLAL KONTROLÜ ────────────────────────
+
+function IsSLABreached(HedefStr: String): Boolean;
+{
+  Result = False;
+  if (Trim(HedefStr) == '') then Exit;
+  // MVP: Hedef tarihi bugun tarihinden once ise ihlal var
+  // FormatDateTime ile karsilastirma sadelestirmesi
+  if (HedefStr < FormatDateTime('dd.mm.yyyy hh:nn', Now))
+    Result = True;
+}
+
+// ─── YARDIMCI: ÖNCELİK RENK ──────────────────────────────
+
+function OncelikRenk(Oncelik: String): String;
+{
+  if (Oncelik == 'Kritik')
+    Result = '#DC2626'
+  else if (Oncelik == 'Yuksek')
+    Result = '#D97706'
+  else if (Oncelik == 'Orta')
+    Result = '#6366F1'
+  else
+    Result = '#6B7280';
+}
+
+// ─── LİSTE RENDER ─────────────────────────────────────────
+
+procedure RenderHavuz(FiltreDurum, FiltreOncelik: String);
+var
+  i         : Integer;
+  row       : TclProPanel;
+  sep       : TclProPanel;
+  lblNo     : TclProLabel;
+  lblBas    : TclProLabel;
+  lblOnc    : TclProLabel;
+  lblDur    : TclProLabel;
+  lblSLA    : TclProLabel;
+  btnSec    : TClProButton;
+  OncRenk   : String;
+  SLABreached : Boolean;
+  Goster    : Boolean;
+  GosterCount : Integer;
+{
+  try
+    scrHavuz.Free;
+  except
+  }
+
+  scrHavuz = HavuzForm.AddNewVertScrollBox(HavuzForm, 'scrHavuz');
+  scrHavuz.Align = alClient;
+  scrHavuz.Margins.Top = 4;
+
+  GosterCount = 0;
+
+  for (i = 0 to TalepSayisi - 1)
+  {
+    Goster = True;
+
+    if ((FiltreDurum <> '') && (ArrDurum.GetItem(i) <> FiltreDurum))
+      Goster = False;
+
+    if ((FiltreOncelik <> '') && (ArrOncelik.GetItem(i) <> FiltreOncelik))
+      Goster = False;
+
+    if (ArrDurum.GetItem(i) == 'Tamamlandi')
+      Goster = False;
+
+    if (ArrDurum.GetItem(i) == 'Iptal')
+      Goster = False;
+
+    if not Goster then Continue;
+
+    GosterCount = GosterCount + 1;
+    OncRenk = OncelikRenk(ArrOncelik.GetItem(i));
+    SLABreached = IsSLABreached(ArrHedefKapanis.GetItem(i));
+
+    row = HavuzForm.AddNewProPanel(scrHavuz, 'row' + IntToStr(i));
+    clComponent.SetupComponent(row, '{"Align":"Top","Height":72,"BackgroundColor":"#FFFFFF","RoundHeight":10,"RoundWidth":10,"BorderWidth":1,"BorderColor":"#E5E7EB","MarginLeft":12,"MarginRight":12,"MarginTop":8}');
+
+    // Oncelik indicator
+    sep = HavuzForm.AddNewProPanel(row, 'ind' + IntToStr(i));
+    clComponent.SetupComponent(sep, '{"Align":"Left","Width":6,"BackgroundColor":"'+OncRenk+'","RoundHeight":0,"RoundWidth":0,"BorderWidth":0}');
+
+    // Secim butonu (sag)
+    btnSec = HavuzForm.AddNewProButton(row, 'btnSec' + IntToStr(i), '>');
+    btnSec.clTagInt = i;
+    clComponent.SetupComponent(btnSec, '{"Align":"Right","Width":36,"BackgroundColor":"null","TextColor":"#6366F1","TextSize":16,"TextBold":"yes","BorderWidth":0}');
+    btnSec.OnClick = 'OnTalepSec';
+
+    // Talep no (sol ust)
+    lblNo = HavuzForm.AddNewProLabel(row, 'lno' + IntToStr(i), ArrTalepNo.GetItem(i));
+    clComponent.SetupComponent(lblNo, '{"Align":"Top","Height":18,"MarginLeft":12,"MarginTop":6,"TextSize":10,"TextColor":"#6B7280","TextHorizontalAlign":"leading","BackgroundColor":"null"}');
+
+    // Baslik
+    lblBas = HavuzForm.AddNewProLabel(row, 'lbas' + IntToStr(i), ArrBaslik.GetItem(i));
+    clComponent.SetupComponent(lblBas, '{"Align":"Top","Height":20,"MarginLeft":12,"TextSize":14,"TextBold":"yes","TextColor":"#111827","TextHorizontalAlign":"leading","BackgroundColor":"null"}');
+
+    // Oncelik ve Durum
+    lblOnc = HavuzForm.AddNewProLabel(row, 'lonc' + IntToStr(i), ArrOncelik.GetItem(i));
+    clComponent.SetupComponent(lblOnc, '{"Align":"Left","Width":70,"MarginLeft":12,"TextSize":11,"TextColor":"'+OncRenk+'","TextVerticalAlign":"center","BackgroundColor":"null"}');
+
+    lblDur = HavuzForm.AddNewProLabel(row, 'ldur' + IntToStr(i), ArrDurum.GetItem(i));
+    clComponent.SetupComponent(lblDur, '{"Align":"Left","Width":90,"TextSize":11,"TextColor":"#374151","TextVerticalAlign":"center","BackgroundColor":"null"}');
+
+    if SLABreached
+    {
+      lblSLA = HavuzForm.AddNewProLabel(row, 'lsla' + IntToStr(i), '! SLA Asildi');
+      clComponent.SetupComponent(lblSLA, '{"Align":"Left","Width":80,"TextSize":10,"TextBold":"yes","TextColor":"#DC2626","TextVerticalAlign":"center","BackgroundColor":"null"}');
+    }
+  }
+
+  lblToplam.Text = 'Acik Talepler: ' + IntToStr(GosterCount);
+}
+
+// ─── OLAY: TALEP SEÇ ─────────────────────────────────────
+
+void OnTalepSec;
+{
+  SeciliTalepIndex = TClProButton(HavuzForm.clSender).clTagInt;
+  ShowMessage('Secildi: ' + ArrTalepNo.GetItem(SeciliTalepIndex) +
+              Chr(10) + 'Baslik: ' + ArrBaslik.GetItem(SeciliTalepIndex) +
+              Chr(10) + 'Durum: ' + ArrDurum.GetItem(SeciliTalepIndex) +
+              Chr(10) + 'Atama ekranina gecilecek.');
+}
+
+// ─── OLAY: FİLTRELE ──────────────────────────────────────
+
+void OnFiltrele;
+{
+  RenderHavuz(Trim(edtFiltreDurum.Text), Trim(edtFiltreOncelik.Text));
+}
+
+// ─── OLAY: YENİ TALEP ────────────────────────────────────
+
+void OnYeniTalep;
+{
+  ShowMessage('Talep Acma ekranina gecilecek.');
+}
+
+// ─── UI YAPIMI ────────────────────────────────────────────
+
+procedure BuildHavuzUI;
+{
+  pnlHeader = HavuzForm.AddNewProPanel(HavuzForm, 'pnlHeader');
+  pnlHeader.Align = alMostTop;
+  pnlHeader.Height = 50;
+  clComponent.SetupComponent(pnlHeader, '{"BackgroundColor":"#6366F1","BorderWidth":0,"RoundHeight":0,"RoundWidth":0}');
+
+  lblTitle = HavuzForm.AddNewProLabel(pnlHeader, 'lblTitle', 'Is Emri Havuzu');
+  clComponent.SetupComponent(lblTitle, '{"Align":"Left","Width":200,"MarginLeft":16,"TextSize":16,"TextBold":"yes","TextColor":"#FFFFFF","TextVerticalAlign":"center","BackgroundColor":"null"}');
+
+  lblKullanici = HavuzForm.AddNewProLabel(pnlHeader, 'lblKul', '');
+  clComponent.SetupComponent(lblKullanici, '{"Align":"Right","Width":150,"MarginRight":16,"TextSize":11,"TextColor":"#D4D5F9","TextHorizontalAlign":"trailing","TextVerticalAlign":"center","BackgroundColor":"null"}');
+
+  pnlFiltreBar = HavuzForm.AddNewProPanel(HavuzForm, 'pnlFiltreBar');
+  pnlFiltreBar.Align = alMostTop;
+  pnlFiltreBar.Height = 44;
+  clComponent.SetupComponent(pnlFiltreBar, '{"BackgroundColor":"#F0F1F5","BorderWidth":0}');
+
+  edtFiltreDurum = HavuzForm.AddNewProEdit(pnlFiltreBar, 'edtFDurum', 'Durum filtresi...');
+  clComponent.SetupComponent(edtFiltreDurum, '{"Align":"Left","Width":130,"MarginLeft":12,"MarginTop":6,"MarginBottom":6,"TextSize":12,"RoundHeight":8,"RoundWidth":8,"BorderWidth":0,"BackgroundColor":"#FFFFFF"}');
+
+  edtFiltreOncelik = HavuzForm.AddNewProEdit(pnlFiltreBar, 'edtFOnc', 'Oncelik filtresi...');
+  clComponent.SetupComponent(edtFiltreOncelik, '{"Align":"Left","Width":130,"MarginLeft":8,"MarginTop":6,"MarginBottom":6,"TextSize":12,"RoundHeight":8,"RoundWidth":8,"BorderWidth":0,"BackgroundColor":"#FFFFFF"}');
+
+  btnFiltrele = HavuzForm.AddNewProButton(pnlFiltreBar, 'btnFilt', 'Ara');
+  clComponent.SetupComponent(btnFiltrele, '{"Align":"Left","Width":60,"MarginLeft":8,"MarginTop":6,"MarginBottom":6,"BackgroundColor":"#6366F1","TextColor":"#FFFFFF","TextSize":12,"RoundHeight":8,"RoundWidth":8,"BorderWidth":0}');
+  btnFiltrele.OnClick = 'OnFiltrele';
+
+  pnlFooter = HavuzForm.AddNewProPanel(HavuzForm, 'pnlFooter');
+  pnlFooter.Align = alBottom;
+  pnlFooter.Height = 50;
+  clComponent.SetupComponent(pnlFooter, '{"BackgroundColor":"#F0F1F5","BorderWidth":0}');
+
+  lblToplam = HavuzForm.AddNewProLabel(pnlFooter, 'lblTpl', 'Acik Talepler: 0');
+  clComponent.SetupComponent(lblToplam, '{"Align":"Left","Width":180,"MarginLeft":16,"TextSize":12,"TextColor":"#374151","TextVerticalAlign":"center","BackgroundColor":"null"}');
+
+  btnYeniTalep = HavuzForm.AddNewProButton(pnlFooter, 'btnYeni', '+ Yeni Talep');
+  clComponent.SetupComponent(btnYeniTalep, '{"Align":"Right","Width":130,"MarginRight":16,"MarginTop":8,"MarginBottom":8,"BackgroundColor":"#6366F1","TextColor":"#FFFFFF","TextSize":13,"TextBold":"yes","RoundHeight":10,"RoundWidth":10,"BorderWidth":0}');
+  btnYeniTalep.OnClick = 'OnYeniTalep';
+}
+
+// ─── DEMO VERİ ────────────────────────────────────────────
+
+procedure LoadDemoTalepler;
+{
+  ArrTalepNo.Add('TLP-20260417-1');
+  ArrBaslik.Add('Asansor arızası B blok');
+  ArrOncelik.Add('Kritik');
+  ArrDurum.Add('Yeni');
+  ArrAtananPersonelId.Add(0);
+  ArrAcilisTarihi.Add('17.04.2026 09:00:00');
+  ArrHedefKapanis.Add('17.04.2026 17:00:00');
+
+  ArrTalepNo.Add('TLP-20260417-2');
+  ArrBaslik.Add('Su kacagi 3. kat koridor');
+  ArrOncelik.Add('Yuksek');
+  ArrDurum.Add('Inceleniyor');
+  ArrAtananPersonelId.Add(0);
+  ArrAcilisTarihi.Add('17.04.2026 10:30:00');
+  ArrHedefKapanis.Add('18.04.2026 10:30:00');
+
+  ArrTalepNo.Add('TLP-20260417-3');
+  ArrBaslik.Add('Klima bakimi ofis kati');
+  ArrOncelik.Add('Orta');
+  ArrDurum.Add('Atandi');
+  ArrAtananPersonelId.Add(2001);
+  ArrAcilisTarihi.Add('17.04.2026 11:00:00');
+  ArrHedefKapanis.Add('19.04.2026 11:00:00');
+
+  ArrTalepNo.Add('TLP-20260417-4');
+  ArrBaslik.Add('Ampul degisimi lobi');
+  ArrOncelik.Add('Dusuk');
+  ArrDurum.Add('Tamamlandi');
+  ArrAtananPersonelId.Add(2001);
+  ArrAcilisTarihi.Add('16.04.2026 08:00:00');
+  ArrHedefKapanis.Add('17.04.2026 08:00:00');
+
+  TalepSayisi = 4;
+}
+
+// ─── ANA PROGRAM ─────────────────────────────────────────
+
+{
+  ArrTalepNo          = TclArrayString.Create;
+  ArrBaslik           = TclArrayString.Create;
+  ArrOncelik          = TclArrayString.Create;
+  ArrDurum            = TclArrayString.Create;
+  ArrAtananPersonelId = TclArrayInteger.Create;
+  ArrAcilisTarihi     = TclArrayString.Create;
+  ArrHedefKapanis     = TclArrayString.Create;
+  TalepSayisi         = 0;
+
+  LoadDemoTalepler;
+
+  HavuzForm = TclStyleForm.Create(Self);
+  HavuzForm.clSetStyle(HavuzForm.LightSB);
+  HavuzForm.clCaption = 'Is Emri Havuzu';
+
+  BuildHavuzUI;
+
+  lblKullanici.Text = 'Yonetici Ayse Demir';
+  RenderHavuz('', '');
+
+  HavuzForm.Run;
+}
