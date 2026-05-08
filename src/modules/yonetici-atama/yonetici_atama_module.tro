@@ -206,7 +206,7 @@ var
 
   AtamaForm = TclStyleForm.Create(Self);
   AtamaForm.clSetStyle(AtamaForm.LightSB);
-  AtamaForm.clCaption = 'Personel Atama';
+  AtamaForm.clsetCaption('Personel Atama');
 
   BuildAtamaUI;
   RenderPersonelListesi;

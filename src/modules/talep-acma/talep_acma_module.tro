@@ -196,7 +196,7 @@ void BuildTalepAcmaUI;
 {
   TalepForm = TclStyleForm.Create(Self);
   TalepForm.clSetStyle(TalepForm.LightSB);
-  TalepForm.clCaption = 'Talep Acma';
+  TalepForm.clsetCaption('Talep Acma');
 
   BuildTalepAcmaUI;
 

@@ -161,7 +161,7 @@ var
 {
   DashForm = TclStyleForm.Create(Self);
   DashForm.clSetStyle(DashForm.LightSB);
-  DashForm.clCaption = 'Dashboard';
+  DashForm.clsetCaption('Dashboard');
 
   BuildDashUI;
   RenderDashboard;

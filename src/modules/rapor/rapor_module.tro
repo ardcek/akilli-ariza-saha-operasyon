@@ -169,7 +169,7 @@ var
 {
   RaporForm = TclStyleForm.Create(Self);
   RaporForm.clSetStyle(RaporForm.LightSB);
-  RaporForm.clCaption = 'Rapor';
+  RaporForm.clsetCaption('Rapor');
 
   BuildRaporUI;
 

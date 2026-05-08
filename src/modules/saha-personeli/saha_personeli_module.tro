@@ -313,7 +313,7 @@ var
 
   SahaForm = TclStyleForm.Create(Self);
   SahaForm.clSetStyle(SahaForm.LightSB);
-  SahaForm.clCaption = 'Saha Islerim';
+  SahaForm.clsetCaption('Saha Islerim');
   SahaForm.AddNewEvent(SahaForm, tbeOnFormShow, 'OnSahaShow');
 
   BuildSahaUI;

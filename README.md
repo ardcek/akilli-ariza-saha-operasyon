@@ -370,6 +370,12 @@ Tum yazma islemleri `AddDurumLog()` araciligiyla durum gecmisine de kaydedilir.
 
 **Onemli:** Clomosy'de TclUnit, unit dosyalarini proje klasorundan `UnitName` ile bulur. Dosya adlari degistirilmemelidir.
 
+### Runtime Uyumluluk Notu
+
+- Projeyi her zaman `MainCode.tro` uzerinden baslatin. Modulleri tek basina calistirmak scope bagimliliklari nedeniyle hataya neden olabilir.
+- Form baslik metni verirken `clCaption` yerine `clsetCaption('...')` kullanin. Bazi Clomosy surumlerinde `clCaption` member'i tanimli degildir.
+- Eğer hala eski runtime hatalari goruluyorsa, proje klasorundeki tum `.tro` dosyalarini yeniden kopyalayip uzerine yazin ve uygulamayi tekrar `MainCode.tro` ile baslatin.
+
 ---
 
 ## Gelistirici Notlari
